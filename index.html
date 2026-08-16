@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>盲測回放 v7 — 雲端同步版</title>
+<title>盲測回放 v8 — 雲端同步版</title>
 <style>
   :root {
     --bg:#0B0E14; --panel:#12161F; --border:#1E2530; --text:#E6EAF2;
@@ -79,7 +79,7 @@
 <div class="wrap">
   <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
     <div>
-      <div style="font-size:19px;font-weight:700;letter-spacing:1px">盲測回放 v7
+      <div style="font-size:19px;font-weight:700;letter-spacing:1px">盲測回放 v8
         <span class="hint">雲端同步版</span></div>
       <div style="font-size:11.5px;color:var(--dim);margin-top:2px">
         每筆單可重播復盤・雙指縮放・300U 跨裝置帳戶</div>
@@ -128,6 +128,8 @@
     <button data-st="5" class="stBtn">5U</button>
     <button data-st="10" class="stBtn">10U</button>
     <button data-st="20" class="stBtn on">20U</button>
+    <button data-st="pct" class="stBtn">本金10%</button>
+    <span class="hint mono" id="pctHint"></span>
     <span class="hint" id="bustTxt"></span>
     <span style="flex:1"></span>
     <span id="syncTxt" class="hint">未設定同步</span>
@@ -216,7 +218,7 @@ const S = {
   offset:0, count:150,
   overlays:{ma:true,boll:false}, sub:"vol", maP:[7,25,99],
   journal: migrate(lsGetArr(JKEY).concat(lsGetArr("blind-replay-journal-v1"))),
-  prefs: lsGet(PKEY,{stake:20}),
+  prefs: lsGet(PKEY,{stake:20, mode:"fixed"}),
   sync: lsGet(SKEY,{token:"",gist:""}),
   stats: JSON.parse(JSON.stringify(EMPTY)),
   acct: {balance:START_BAL, busts:0, cooldownUntil:0},
@@ -272,6 +274,9 @@ function addEvent(e){
 }
 const cdRemain = () => Math.max(0, S.acct.cooldownUntil - Date.now());
 const busted = () => S.acct.balance < MIN_STAKE;
+const currentStake = () => S.prefs.mode==="pct"
+  ? Math.max(1, Math.round(S.acct.balance*0.10*10)/10)   // 本金 10%，取到 0.1U
+  : S.prefs.stake;
 
 // ─── Gist 同步 ──────────────────────────────────────────
 function mergeJournal(remote){
@@ -529,11 +534,13 @@ async function bet(dir){
   if(S.mode==="review" || S.phase!=="guess") return;
   if(cdRemain()>0){ flashResult("冷靜期中，先離開螢幕休息一下"); return; }
   if(busted()){ flashResult("帳戶淨值不足，請重置帳戶"); return; }
-  if(S.acct.balance < S.prefs.stake){ flashResult(`餘額不足 ${S.prefs.stake}U，換小一點的單筆金額`); return; }
+  const stk = currentStake();
+  if(S.acct.balance < stk){ flashResult(`餘額不足 ${stk}U，換小一點的單筆金額`); return; }
   cover("載入資料中…");
   const ok = await ensureFuture(S.horizon);
   coverOff();
   if(!ok){ flashResult("未來資料不足，請換一段歷史"); return; }
+  S.pendingStake = stk;
   S.guessDir = dir; S.entryIdx = S.nowIdx; S.offset = 0;
   S.phase = "revealing"; S.tfMin = 1; S.count = Math.max(S.count,120); syncTfButtons();
   updateUI();
@@ -546,7 +553,7 @@ async function bet(dir){
   }, iv);
 }
 function settle(){
-  const stake = S.prefs.stake;
+  const stake = S.pendingStake || currentStake();
   const entry = S.bars[S.entryIdx].c, fin = S.bars[S.entryIdx+S.horizon].c;
   const outcome = fin===entry ? "flat" : (fin>entry)===(S.guessDir==="up") ? "win" : "loss";
   S.result = {outcome, entry, settle:fin};
@@ -756,7 +763,9 @@ function updateAcct(){
   $("balTxt").textContent = b.toFixed(1)+" U";
   $("balTxt").style.color = busted() ? "var(--down)" : b>=START_BAL ? "var(--up)" : "var(--text)";
   $("bustTxt").textContent = S.acct.busts>0 ? `爆倉 ${S.acct.busts} 次` : "";
-  document.querySelectorAll(".stBtn").forEach(x=>x.classList.toggle("on", +x.dataset.st===S.prefs.stake));
+  document.querySelectorAll(".stBtn").forEach(x=>x.classList.toggle("on",
+    S.prefs.mode==="pct" ? x.dataset.st==="pct" : +x.dataset.st===S.prefs.stake));
+  $("pctHint").textContent = S.prefs.mode==="pct" ? `＝${currentStake().toFixed(1)}U` : "";
   const cd=cdRemain();
   if(cd>0){
     const mm=String(Math.floor(cd/60000)), ss=String(Math.floor(cd%60000/1000)).padStart(2,"0");
@@ -767,7 +776,7 @@ function updateAcct(){
 function updateUI(){
   $("topInfo").textContent = S.mode==="review" ? "復盤模式" : `${S.symbol} / 押 ${S.horizon} 分`;
   const g = S.mode==="play" && S.phase==="guess";
-  const canBet = g && cdRemain()===0 && !busted() && S.acct.balance>=S.prefs.stake;
+  const canBet = g && cdRemain()===0 && !busted() && S.acct.balance>=currentStake();
   $("betUp").disabled = $("betDown").disabled = !canBet;
   const stepOk = S.mode==="play" && (S.phase==="guess" || S.phase==="result");
   $("step1").disabled=$("step5").disabled=$("step30").disabled = !stepOk;
@@ -818,7 +827,9 @@ document.querySelectorAll(".tfBtn").forEach(b=>b.onclick=()=>{
   draw();
 });
 document.querySelectorAll(".stBtn").forEach(b=>b.onclick=()=>{
-  S.prefs.stake=+b.dataset.st; persistPrefs(); updateUI();
+  if(b.dataset.st==="pct"){ S.prefs.mode="pct"; }
+  else { S.prefs.mode="fixed"; S.prefs.stake=+b.dataset.st; }
+  persistPrefs(); updateUI();
 });
 for(const [i,id] of ["ma1","ma2","ma3"].entries()){
   $(id).onchange = $(id).oninput = ()=>{
