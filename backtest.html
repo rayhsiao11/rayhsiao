@@ -50,7 +50,9 @@
     <div class="row">
       <label>幣種 <select id="sym"><option>BTCUSDT</option><option>ETHUSDT</option></select></label>
       <label>回測 <select id="months"><option value="3">近 3 個月</option>
-        <option value="6" selected>近 6 個月</option><option value="12">近 12 個月</option></select></label>
+        <option value="6" selected>近 6 個月</option><option value="12">近 12 個月</option>
+        <option value="24">近 2 年</option><option value="60">近 5 年</option>
+        <option value="120">近 10 年</option></select></label>
       <label>押 <select id="hz"><option value="10" selected>10 分</option>
         <option value="30">30 分</option><option value="60">60 分</option></select></label>
       <label>模式 <select id="mode"><option value="trend" selected>順勢（突破跟進）</option>
@@ -63,7 +65,7 @@
     </div>
     <div class="row" style="margin-top:12px">
       <button id="runBtn">開始回測</button>
-      <span class="hint" id="status">6 個月約 26 萬根 1 分 K、260 次請求，手機約 2–4 分鐘。抓過的資料本次頁面內會重用。</span>
+      <span class="hint" id="status">已改為 8 路並發下載：6 個月約 1 分鐘；10 年約 520 萬根、5,200+ 段，手機約 5–10 分鐘、流量約 80MB，建議接 WiFi 且過程中別鎖屏。抓過的資料本次頁面內會重用。</span>
     </div>
     <div id="prog"><div id="progFill"></div></div>
   </div>
@@ -109,16 +111,26 @@ async function loadData(sym, months){
   if(cache[key]) return cache[key];
   const end=Date.now()-2*86400e3;
   const start=end - months*30*86400e3;
+  const CHUNK=1000*60000;                 // 每段 1000 分鐘
+  const starts=[];
+  for(let cur=start; cur<end; cur+=CHUNK) starts.push(Math.floor(cur));
   const T=[], C=[];
-  let cur=start, total=end-start;
-  while(cur<end){
-    const raw=await api(`/api/v3/klines?symbol=${sym}&interval=1m&startTime=${Math.floor(cur)}&limit=1000`);
-    if(!raw || !raw.length) break;
-    for(const k of raw){ T.push(k[0]); C.push(+k[4]); }
-    cur=raw[raw.length-1][0]+60000;
-    $("progFill").style.width=Math.min(100,(cur-start)/total*100).toFixed(1)+"%";
-    $("status").textContent=`下載中… ${new Date(cur).toISOString().slice(0,10)}（${T.length.toLocaleString()} 根）`;
-    await new Promise(r=>setTimeout(r,80));
+  let done=0, lastT=-1;
+  const BATCH=8;                          // 8 路並發，兼顧速度與幣安限流
+  for(let b=0;b<starts.length;b+=BATCH){
+    const batch=starts.slice(b,b+BATCH);
+    const results=await Promise.all(batch.map(st=>
+      api(`/api/v3/klines?symbol=${sym}&interval=1m&startTime=${st}&endTime=${st+CHUNK-1}&limit=1000`)));
+    for(const raw of results){
+      if(!raw) continue;
+      for(const k of raw){
+        if(k[0]>lastT){ T.push(k[0]); C.push(+k[4]); lastT=k[0]; }
+      }
+    }
+    done+=batch.length;
+    $("progFill").style.width=Math.min(100,done/starts.length*100).toFixed(1)+"%";
+    $("status").textContent=`下載中… ${done}/${starts.length} 段（${T.length.toLocaleString()} 根）`;
+    await new Promise(r=>setTimeout(r,120));
   }
   const d={t:T,c:C};
   cache[key]=d;
