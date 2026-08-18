@@ -44,7 +44,7 @@
 <body>
 <div class="wrap">
   <div style="font-size:19px;font-weight:700;letter-spacing:1px">策略回測
-    <span class="hint">1H趨勢＋10m趨勢一致・1m布林突破・押10分鐘</span></div>
+    <span class="hint">1H趨勢＋1m布林突破＋次根確認・押10分鐘</span></div>
 
   <div class="card">
     <div class="row">
@@ -56,7 +56,6 @@
     </div>
     <div class="row" style="margin-top:8px">
       <label>1H MA <input id="h1ma" type="number" value="20" min="2" max="200"></label>
-      <label>10m MA <input id="m10ma" type="number" value="20" min="2" max="200"></label>
       <label>BOLL <input id="bolln" type="number" value="20" min="5" max="100"></label>
       <label>×σ <input id="bollk" type="number" value="2" min="0.5" max="4" step="0.1"></label>
     </div>
@@ -80,8 +79,8 @@
   </div>
 
   <div class="card hint">
-    規則實作：1H 與 10m 均以「已收完」K 棒收盤 vs SMA 判趨勢（嚴防未來洩漏）；1m 收盤突破布林上軌且雙趨勢皆多
-    → 押漲，跌破下軌且雙空 → 押跌；持倉期間不重複進場；結算比進場/到期收盤價，賠率 0.8，兩平線 55.6%。
+    規則實作：1H 以「已收完」K 棒收盤 vs SMA 判趨勢（嚴防未來洩漏）；1m 收盤突破布林上軌、且「下一根」也收在上軌之外
+    → 於確認根收盤押漲（下軌反之押跌），趨勢須同向；持倉期間不重複進場；結算比進場/到期收盤價，賠率 0.8，兩平線 55.6%。
     資料來源：幣安公開 1m K 線。回測結果不代表未來績效，僅供策略驗證。
   </div>
 </div>
@@ -167,34 +166,36 @@ function normCdf(z){ const t=1/(1+0.2316419*Math.abs(z)), d=0.3989423*Math.exp(-
 async function run(){
   $("runBtn").disabled=true; $("resCard").style.display="none";
   const sym=$("sym").value, months=+$("months").value, H=+$("hz").value;
-  const h1ma=+$("h1ma").value, m10ma=+$("m10ma").value, bn=+$("bolln").value, bk=+$("bollk").value;
+  const h1ma=+$("h1ma").value, bn=+$("bolln").value, bk=+$("bollk").value;
   try{
     const {t:T,c:C}=await loadData(sym,months);
     if(T.length<5000){ $("status").textContent="資料不足，請重試"; $("runBtn").disabled=false; return; }
     $("status").textContent="計算指標與訊號中…";
     await new Promise(r=>setTimeout(r,30));
 
-    const mid=sma(C,bn), sd=rollStd(C,bn), t10=trendMap(T,C,10,m10ma), t1h=trendMap(T,C,60,h1ma);
+    const mid=sma(C,bn), sd=rollStd(C,bn), t1h=trendMap(T,C,60,h1ma);
 
     const trades=[];
     let busyUntil=-1;
-    for(let i=0;i<C.length-H-1;i++){
-      if(mid[i]===null || t10[i]===null || t1h[i]===null) continue;
-      if(T[i]<=busyUntil) continue;
-      const up=C[i]>mid[i]+bk*sd[i], dn=C[i]<mid[i]-bk*sd[i];
+    for(let i=0;i<C.length-H-2;i++){
+      if(mid[i]===null || mid[i+1]===null || t1h[i+1]===null) continue;
+      if(T[i+1]<=busyUntil) continue;
+      // 突破根 i ＋ 確認根 i+1 都收在通道外同一側，才在 i+1 收盤進場
+      const upBrk = C[i]>mid[i]+bk*sd[i]   && C[i+1]>mid[i+1]+bk*sd[i+1];
+      const dnBrk = C[i]<mid[i]-bk*sd[i]   && C[i+1]<mid[i+1]-bk*sd[i+1];
       let dir=0;
-      if(up && t1h[i]===1 && t10[i]===1) dir=1;
-      else if(dn && t1h[i]===-1 && t10[i]===-1) dir=-1;
+      if(upBrk && t1h[i+1]===1) dir=1;
+      else if(dnBrk && t1h[i+1]===-1) dir=-1;
       if(!dir) continue;
-      // 結算：+H 分鐘後的那根（用時間對齊，容忍缺K）
-      const targetT=T[i]+H*60000;
-      let j=i+H;
+      const e=i+1;
+      const targetT=T[e]+H*60000;
+      let j=e+H;
       while(j<T.length && T[j]<targetT) j++;
       if(j>=T.length || T[j]!==targetT) continue;   // 缺K跳過
-      const entry=C[i], fin=C[j];
+      const entry=C[e], fin=C[j];
       const outcome = fin===entry? "flat" : (fin>entry)===(dir===1)? "win":"loss";
-      trades.push({t:T[i], dir:dir===1?"up":"down", entry, settle:fin, outcome});
-      busyUntil=T[i]+H*60000;
+      trades.push({t:T[e], dir:dir===1?"up":"down", entry, settle:fin, outcome});
+      busyUntil=T[e]+H*60000;
     }
     render(trades, sym, months, H);
   }catch(e){
