@@ -68,6 +68,9 @@
         <option value="on">避開暴走（原濾網）</option>
         <option value="hot_up">只做暴漲時段</option>
         <option value="hot_down">只做暴跌時段</option></select></label>
+      <label>切分 <select id="split"><option value="all" selected>全部期間</option>
+        <option value="first">前半段（調參用）</option>
+        <option value="second">後半段（驗證用）</option></select></label>
       <label>門檻 |30日漲跌| <input id="filtTh" type="number" value="25" min="5" max="80" step="1">%</label>
     </div>
     <div class="row" style="margin-top:12px">
@@ -212,6 +215,7 @@ async function run(){
   const mode=$("mode").value;
   const filtMode=$("filt").value, filtTh=(+$("filtTh").value||25)/100;
   const useF=filtMode!=="off";
+  const split=$("split").value;
   const dirSel=$("dirSel").value;
   try{
     const {t:T,c:C}=await loadData(sym,months);
@@ -224,10 +228,13 @@ async function run(){
     let filteredOut = 0;
 
     const trades=[];
+    const midT=(T[0]+T[T.length-1])/2;   // 期中點：前半調參、後半驗證
     let busyUntil=-1;
     for(let i=0;i<C.length-H-2;i++){
       if(mid[i]===null || mid[i+1]===null || t1h[i+1]===null) continue;
       if(T[i+1]<=busyUntil) continue;
+      if(split==="first"  && T[i+1]> midT) continue;
+      if(split==="second" && T[i+1]<=midT) continue;
       // 突破根 i ＋ 確認根 i+1 都收在通道外同一側，才在 i+1 收盤進場
       const upBrk = C[i]>mid[i]+bk*sd[i]   && C[i+1]>mid[i+1]+bk*sd[i+1];
       const dnBrk = C[i]<mid[i]-bk*sd[i]   && C[i+1]<mid[i+1]-bk*sd[i+1];
