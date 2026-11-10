@@ -9,12 +9,12 @@
     --dim:#8B93A7; --faint:#5A6172; --up:#0ECB81; --down:#F6465D; --acc:#F0B90B; }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--text);
-    font-family:'Noto Sans TC','PingFang TC',system-ui,sans-serif; }
-  .wrap { max-width:760px; margin:0 auto; padding:16px 12px; }
+    font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',system-ui,sans-serif; }
+  .wrap { max-width:780px; margin:0 auto; padding:16px 12px; }
   .card { background:var(--panel); border:1px solid var(--border); border-radius:12px;
     padding:14px; margin-top:12px; }
   .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-  label { font-size:12px; color:var(--dim); }
+  label, .lbl { font-size:12px; color:var(--dim); }
   select, input { padding:9px 10px; border-radius:7px; border:1px solid var(--border);
     background:var(--bg); color:var(--text); font-size:13px; font-family:inherit; }
   input { width:64px; text-align:center; }
@@ -23,73 +23,110 @@
     cursor:pointer; font-family:inherit; }
   button:disabled { opacity:.4; }
   button.ghost { background:var(--panel); color:#C7CDDB; border-color:var(--border);
-    font-weight:600; font-size:12px; padding:8px 12px; }
+    font-weight:600; font-size:12px; padding:9px 12px; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline:2px solid var(--acc); outline-offset:2px; }
   .mono { font-family:ui-monospace,Menlo,Consolas,monospace; }
   #prog { height:8px; background:var(--bg); border-radius:4px; overflow:hidden;
     border:1px solid var(--border); margin-top:8px; }
   #progFill { height:100%; width:0%; background:var(--acc); transition:width .2s; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(105px,1fr));
-    gap:12px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(118px,1fr)); gap:12px; }
   .st .l { font-size:11px; color:var(--dim); }
   .st .v { font-size:17px; font-weight:700; margin-top:2px; }
   .st .s { font-size:10.5px; color:var(--faint); }
   .mrow { display:flex; gap:8px; align-items:center; font-size:12px; padding:2px 0; }
   .mbar { height:10px; background:var(--up); border-radius:3px; }
-  #verdict { margin-top:10px; padding:10px 12px; border-radius:8px; font-size:13px;
+  .verdict { margin-top:10px; padding:10px 12px; border-radius:8px; font-size:13px; line-height:1.6;
     border:1px solid var(--acc); color:var(--acc); background:#F0B90B12; }
   .hint { font-size:11px; color:var(--faint); line-height:1.6; }
+  .sec { margin-top:18px; font-size:12.5px; color:var(--dim); }
+  .scroll { overflow-x:auto; }
+  table.t { border-collapse:collapse; font-size:12.5px; }
+  table.t th { color:var(--dim); font-size:11px; font-weight:600; padding:4px 9px;
+    text-align:right; border-bottom:1px solid var(--border); white-space:nowrap; }
+  table.t td { padding:5px 9px; text-align:right; white-space:nowrap; }
+  table.t th:first-child, table.t td:first-child { text-align:left; }
+  td.cur { outline:1.5px solid var(--acc); outline-offset:-2px; border-radius:5px; }
   canvas { width:100%; display:block; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div style="font-size:19px;font-weight:700;letter-spacing:1px">策略回測
-    <span class="hint">1H趨勢＋1m布林突破＋次根確認・押10分鐘</span></div>
+    <span class="hint">1H 趨勢＋1m 布林突破＋次根確認</span></div>
 
   <div class="card">
     <div class="row">
       <label>幣種 <select id="sym"><option>BTCUSDT</option><option>ETHUSDT</option></select></label>
       <label>回測 <select id="months"><option value="3">近 3 個月</option>
-        <option value="6" selected>近 6 個月</option><option value="12">近 12 個月</option>
+        <option value="6">近 6 個月</option><option value="12">近 12 個月</option>
         <option value="24">近 2 年</option><option value="60">近 5 年</option>
-        <option value="120">近 10 年</option></select></label>
+        <option value="120" selected>近 10 年</option></select></label>
       <label>押 <select id="hz"><option value="10" selected>10 分</option>
         <option value="30">30 分</option><option value="60">60 分</option></select></label>
-      <label>模式 <select id="mode"><option value="trend" selected>順勢（突破跟進）</option>
-        <option value="fade">逆勢（突破反押）</option></select></label>
-      <label>只做 <select id="dirSel"><option value="all" selected>漲跌都做</option>
-        <option value="up">只押漲</option><option value="down">只押跌</option></select></label>
+      <label>模式 <select id="mode"><option value="trend">順勢（突破跟進）</option>
+        <option value="fade" selected>逆勢（突破反押）</option></select></label>
+      <label>只做 <select id="dirSel"><option value="all">漲跌都做</option>
+        <option value="up" selected>只押漲</option><option value="down">只押跌</option></select></label>
     </div>
     <div class="row" style="margin-top:8px">
-      <label>1H MA <input id="h1ma" type="number" value="20" min="2" max="200"></label>
-      <label>BOLL <input id="bolln" type="number" value="20" min="5" max="100"></label>
-      <label>×σ <input id="bollk" type="number" value="2" min="0.5" max="4" step="0.1"></label>
-      <label>行情篩選 <select id="filt"><option value="off" selected>關閉（全部行情）</option>
-        <option value="on">避開暴走（原濾網）</option>
+      <label>1H MA <input id="h1ma" type="number" value="3" min="2" max="200"></label>
+      <label>BOLL <input id="bolln" type="number" value="99" min="5" max="300"></label>
+      <label>×σ <input id="bollk" type="number" value="3" min="0.5" max="5" step="0.1"></label>
+      <label>行情篩選 <select id="filt"><option value="off">關閉（全部行情）</option>
+        <option value="on" selected>避開暴走</option>
         <option value="hot_up">只做暴漲時段</option>
         <option value="hot_down">只做暴跌時段</option></select></label>
+      <label>門檻 |30日漲跌| <input id="filtTh" type="number" value="30" min="5" max="90" step="1">%</label>
       <label>切分 <select id="split"><option value="all" selected>全部期間</option>
-        <option value="first">前半段（調參用）</option>
-        <option value="second">後半段（驗證用）</option></select></label>
-      <label>門檻 |30日漲跌| <input id="filtTh" type="number" value="25" min="5" max="80" step="1">%</label>
+        <option value="first">前半段</option>
+        <option value="second">後半段</option></select></label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <span class="lbl" style="color:var(--acc)">實戰條件</span>
+      <label>支付率 <input id="payout" type="number" value="0.80" min="0.5" max="1" step="0.01"></label>
+      <label>進場延遲 <select id="delay"><option value="0" selected>0（理想狀況）</option>
+        <option value="1">晚 1 分鐘</option><option value="2">晚 2 分鐘</option>
+        <option value="3">晚 3 分鐘</option></select></label>
+      <span class="lbl">只算台灣時間 <input id="hFrom" type="number" value="0" min="0" max="23" aria-label="起始小時"> 點到
+        <input id="hTo" type="number" value="24" min="1" max="24" aria-label="結束小時"> 點</span>
     </div>
     <div class="row" style="margin-top:12px">
       <button id="runBtn">開始回測</button>
-      <span class="hint" id="status">已改為 8 路並發下載：6 個月約 1 分鐘；10 年約 520 萬根、5,200+ 段，手機約 5–10 分鐘、流量約 80MB，建議接 WiFi 且過程中別鎖屏。抓過的資料本次頁面內會重用。</span>
+      <button class="ghost" id="presetBtn">套用定案策略</button>
+      <span class="hint" id="status">資料存在本機，之後只補抓新的部分。第一次抓 10 年約 8–12 分鐘，過程別鎖屏。</span>
     </div>
     <div id="prog"><div id="progFill"></div></div>
   </div>
 
   <div class="card" id="resCard" style="display:none">
     <div class="grid" id="statGrid"></div>
-    <div id="verdict"></div>
+    <div class="verdict" id="verdict"></div>
+    <div class="hint" id="reality" style="margin-top:8px"></div>
     <div style="margin-top:14px"><canvas id="eq" height="160"></canvas></div>
     <div class="hint" style="text-align:center">固定 20U 累計損益曲線（依訊號序）</div>
-    <div style="margin-top:14px;font-size:12.5px;color:var(--dim)">穩健性檢查：前半段 vs 後半段（同一組參數）</div>
+
+    <div class="sec">延遲測試：手慢幾秒，勝率剩多少（用 1 秒 K 線重算最近的訊號）</div>
+    <div class="row" style="margin-top:6px">
+      <label>取最近 <select id="latN"><option value="300">300 筆（約 1 分鐘）</option>
+        <option value="1000" selected>1000 筆（約 3 分鐘）</option><option value="3000">3000 筆</option>
+        <option value="99999">全部（最準，約 15 分鐘）</option></select></label>
+      <button class="ghost" id="latBtn">開始延遲測試</button>
+      <span class="hint" id="latStatus"></span>
+    </div>
+    <div id="latency" style="margin-top:6px"></div>
+
+    <div class="sec">參數敏感度：這組參數是「高原」還是「挑出來的尖峰」</div>
+    <div class="row" style="margin-top:6px">
+      <button class="ghost" id="gridBtn">開始敏感度測試</button>
+      <span class="hint" id="gridStatus"></span>
+    </div>
+    <div id="sens" style="margin-top:6px"></div>
+
+    <div class="sec">前半段 vs 後半段（同一組參數）</div>
     <div id="halves" style="margin-top:6px"></div>
-    <div style="margin-top:14px;font-size:12.5px;color:var(--dim)">分月勝率（訊號筆數）</div>
+    <div class="sec">分月勝率（訊號筆數）</div>
     <div id="monthly" style="margin-top:6px"></div>
-    <div style="margin-top:14px;font-size:12.5px;color:var(--dim)">分時段勝率（UTC，台灣時間 = UTC+8）</div>
+    <div class="sec">分時段勝率（台灣時間）</div>
     <div id="hourly" style="margin-top:6px"></div>
     <div class="row" style="margin-top:12px">
       <button class="ghost" id="csvBtn">下載每筆明細 CSV</button>
@@ -97,21 +134,27 @@
   </div>
 
   <div class="card hint">
-    規則實作：1H 以「已收完」K 棒收盤 vs SMA 判趨勢（嚴防未來洩漏）；1m 收盤突破布林上軌、且「下一根」也收在上軌之外
-    → 於確認根收盤押漲（下軌反之押跌），趨勢須同向；持倉期間不重複進場；結算比進場/到期收盤價，賠率 0.8，兩平線 55.6%。
-    資料來源：幣安公開 1m K 線。回測結果不代表未來績效，僅供策略驗證。
+    規則：1H 以「已收完」K 棒收盤 vs 均線判趨勢；1m 收盤突破布林軌道、且下一根也收在軌道外 → 於確認根收盤進場，
+    押到期時的漲跌；持倉期間不重複進場。逆勢＝反向押。回測用幣安現貨 1m 收盤價，實際事件合約用指數價、下單後下一秒成交，
+    支付率由平台依波動與風險動態決定 — 所以「支付率」與「進場延遲」請用實際觀察到的數字來設。
+    回測結果不代表未來績效，僅供策略驗證。
   </div>
 </div>
 
 <script>
 "use strict";
 const HOSTS=["https://data-api.binance.vision","https://api.binance.com"];
-const PAYOUT=0.8, BREAKEVEN=1/1.8, STAKE=20;
+let PAYOUT=0.8, BREAKEVEN=1/1.8;
+const STAKE=20;
 const $=id=>document.getElementById(id);
-const cache={};   // symbol_months → {t:[],c:[]}（本次頁面）
-let lastTrades=null;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const pct=(x,d=1)=>(x*100).toFixed(d)+"%";
+const cache={};          // symbol_months → {t:Float64Array,c:Float64Array}
+let lastRun=null;
+let rateMsgUntil=0;
+function setStatus(s){ $("status").textContent=s; }
 
-// ─── IndexedDB 永久快取：下載過的資料重開頁面還在 ───────
+// ─── IndexedDB 永久快取 ─────────────────────────────────
 const DB_NAME="btc-backtest-cache", STORE="klines";
 function idb(){
   return new Promise((res,rej)=>{
@@ -141,7 +184,7 @@ async function idbPut(key,val){
 }
 
 // ─── 具重試與退避的抓取（遇 429/418 自動降速）──────────
-let throttleMs=220;          // 動態間隔
+let throttleMs=220;
 async function apiOnce(host,path){
   const r=await fetch(host+path);
   if(r.status===429||r.status===418){
@@ -161,103 +204,120 @@ async function api(path,tries=6){
       try{ return await apiOnce(h,path); }
       catch(e){
         lastErr=e;
-        if(e.wait){ $("status").textContent=`幣安限流，暫停 ${Math.round(e.wait/1000)} 秒後自動續傳…`;
-                    await new Promise(r=>setTimeout(r,e.wait)); }
+        if(e.wait){ rateMsgUntil=Date.now()+e.wait+500;
+          setStatus(`幣安限流，暫停 ${Math.round(e.wait/1000)} 秒後自動續傳…`);
+          await sleep(e.wait); }
       }
     }
-    await new Promise(r=>setTimeout(r, 400*Math.pow(2,a)));   // 指數退避
+    await sleep(400*Math.pow(2,a));
   }
   throw lastErr||new Error("fetch failed");
 }
 
-async function loadData(sym, months){
-  const key=sym+"_"+months;
-  if(cache[key]) return cache[key];
-  const stored=await idbGet(key);
-  if(stored && stored.t && stored.t.length>5000){
-    const d={t:Array.from(stored.t), c:Array.from(stored.c)};
-    cache[key]=d;
-    $("status").textContent=`已從本機快取載入 ${d.t.length.toLocaleString()} 根（免重新下載）`;
-    $("progFill").style.width="100%";
-    return d;
-  }
-  const end=Date.now()-2*86400e3;
-  const start=end - months*30*86400e3;
-  const CHUNK=1000*60000;
-  const starts=[];
-  for(let cur=start; cur<end; cur+=CHUNK) starts.push(Math.floor(cur));
+// 抓 [from, to) 區間的 1 分 K（to 之後的不要，避免拿到還沒收完的那根）
+async function fetchRange(sym, from, to){
+  const CHUNK=1000*60000, starts=[];
+  for(let cur=from; cur<to; cur+=CHUNK) starts.push(Math.floor(cur));
   const parts=new Array(starts.length).fill(null);
   let done=0, failed=0;
-  const BATCH=4;                         // 降到 4 路，配合動態間隔避開幣安限流
-  for(let b=0;b<starts.length;b+=BATCH){
-    const idxs=[];
-    for(let k=b;k<Math.min(b+BATCH,starts.length);k++) idxs.push(k);
+  for(let b=0;b<starts.length;b+=4){
+    const idxs=[]; for(let k=b;k<Math.min(b+4,starts.length);k++) idxs.push(k);
     await Promise.all(idxs.map(async k=>{
-      const st=starts[k];
-      try{
-        parts[k]=await api(`/api/v3/klines?symbol=${sym}&interval=1m&startTime=${st}&endTime=${st+CHUNK-1}&limit=1000`);
-      }catch(e){ parts[k]=[]; failed++; }   // 真的拿不到才放棄，並計數
+      const st=starts[k], en=Math.min(st+CHUNK,to)-1;
+      try{ parts[k]=await api(`/api/v3/klines?symbol=${sym}&interval=1m&startTime=${st}&endTime=${en}&limit=1000`); }
+      catch(e){ parts[k]=[]; failed++; }
     }));
     done+=idxs.length;
     $("progFill").style.width=Math.min(100,done/starts.length*100).toFixed(1)+"%";
-    if(!/限流/.test($("status").textContent))
-      $("status").textContent=`下載中… ${done}/${starts.length} 段${failed?`（失敗 ${failed}）`:""}`;
-    await new Promise(r=>setTimeout(r,throttleMs));
+    if(Date.now()>rateMsgUntil) setStatus(`下載中… ${done}/${starts.length} 段${failed?`（失敗 ${failed}）`:""}`);
+    await sleep(throttleMs);
   }
   const T=[],C=[]; let lastT=-1;
   for(const raw of parts){ if(!raw) continue;
-    for(const k of raw){ if(k[0]>lastT){ T.push(k[0]); C.push(+k[4]); lastT=k[0]; } } }
-  if(failed>starts.length*0.02) throw new Error(`有 ${failed} 段抓不到（資料會有破洞），請稍後重試`);
-  const d={t:T,c:C};
+    for(const k of raw){ if(k[0]>lastT && k[0]<to){ T.push(k[0]); C.push(+k[4]); lastT=k[0]; } } }
+  return {T,C,failed,total:starts.length};
+}
+
+async function loadData(sym, months){
+  const key=sym+"_"+months;
+  const end=Math.floor(Date.now()/60000)*60000-120000;      // 不含正在形成的 K 棒
+  const start=end-months*30*86400e3;
+  let d=cache[key]||null;
+  if(!d){
+    const st=await idbGet(key);
+    if(st && st.t && st.t.length>5000)
+      d={ t: st.t instanceof Float64Array ? st.t : Float64Array.from(st.t),
+          c: st.c instanceof Float64Array ? st.c : Float64Array.from(st.c) };
+  }
+  if(d){
+    const lastT=d.t[d.t.length-1];
+    if(end-lastT>3*3600e3){                                  // 快取落後 → 只補尾段
+      setStatus(`本機資料到 ${new Date(lastT).toISOString().slice(0,10)}，補抓之後的新資料…`);
+      const tail=await fetchRange(sym,lastT+60000,end);
+      if(tail.failed>tail.total*0.02) throw new Error(`補抓時有 ${tail.failed} 段失敗，請稍後重試`);
+      let k=0; while(k<d.t.length && d.t[k]<start) k++;      // 裁掉已滑出視窗的舊資料
+      const keep=d.t.length-k;
+      const nt=new Float64Array(keep+tail.T.length), nc=new Float64Array(keep+tail.T.length);
+      nt.set(d.t.subarray(k)); nc.set(d.c.subarray(k));
+      nt.set(tail.T,keep); nc.set(tail.C,keep);
+      d={t:nt,c:nc};
+      await idbPut(key,{t:d.t,c:d.c,ts:Date.now()});
+      setStatus(`已補到最新，共 ${d.t.length.toLocaleString()} 根`);
+    } else setStatus(`本機快取 ${d.t.length.toLocaleString()} 根（已是最新）`);
+    $("progFill").style.width="100%";
+    cache[key]=d; return d;
+  }
+  const r=await fetchRange(sym,start,end);
+  if(r.failed>r.total*0.02) throw new Error(`有 ${r.failed} 段抓不到（資料會有破洞），請稍後重試`);
+  d={t:Float64Array.from(r.T), c:Float64Array.from(r.C)};
   cache[key]=d;
-  const ok=await idbPut(key,{t:new Float64Array(T), c:new Float64Array(C), ts:Date.now()});
-  $("status").textContent=`下載完成 ${T.length.toLocaleString()} 根${ok?"，已存入本機快取":""}`;
+  const ok=await idbPut(key,{t:d.t,c:d.c,ts:Date.now()});
+  setStatus(`下載完成 ${d.t.length.toLocaleString()} 根${ok?"，已存入本機快取":""}`);
   return d;
 }
 
-function sma(arr,n){
-  const out=new Array(arr.length).fill(null); let s=0;
-  for(let i=0;i<arr.length;i++){ s+=arr[i]; if(i>=n) s-=arr[i-n]; if(i>=n-1) out[i]=s/n; }
-  return out;
-}
-function rollStd(arr,n,mean){
-  const out=new Array(arr.length).fill(null);
-  let s=0,s2=0;
-  for(let i=0;i<arr.length;i++){
-    s+=arr[i]; s2+=arr[i]*arr[i];
-    if(i>=n){ s-=arr[i-n]; s2-=arr[i-n]*arr[i-n]; }
-    if(i>=n-1){ const m=s/n; out[i]=Math.sqrt(Math.max(0,s2/n-m*m)); }
+// <<CORE-BEGIN>> 純計算（不碰畫面）
+// 滾動平均 / 標準差：每 4096 根重算一次視窗總和，消除五百萬根累加的浮點誤差
+function sma(a,n){
+  const N=a.length, out=new Float64Array(N).fill(NaN); let s=0;
+  for(let i=0;i<N;i++){
+    s+=a[i]; if(i>=n) s-=a[i-n];
+    if(i>=n-1){
+      if((i&4095)===0){ s=0; for(let k=i-n+1;k<=i;k++) s+=a[k]; }
+      out[i]=s/n;
+    }
   }
   return out;
 }
-// 高週期趨勢：對每個 1m index 給出「最近一根已收完」高週期K的趨勢（1/-1/null）
-function trendMap(T, C, bucketMin, maN){
-  const ms=bucketMin*60000;
-  const bT=[], bC=[];
+function rollStd(a,n){
+  const N=a.length, out=new Float64Array(N).fill(NaN); let s=0,s2=0;
+  for(let i=0;i<N;i++){
+    const v=a[i]; s+=v; s2+=v*v;
+    if(i>=n){ const u=a[i-n]; s-=u; s2-=u*u; }
+    if(i>=n-1){
+      if((i&4095)===0){ s=0; s2=0; for(let k=i-n+1;k<=i;k++){ s+=a[k]; s2+=a[k]*a[k]; } }
+      const m=s/n; out[i]=Math.sqrt(Math.max(0,s2/n-m*m));
+    }
+  }
+  return out;
+}
+// 高週期趨勢：每根 1m 對應「最近一根已收完」的高週期 K 的趨勢（1 / -1；0 = 尚無資料）
+function trendMap(T,C,bucketMin,maN){
+  const ms=bucketMin*60000, bT=[], bC=[];
   for(let i=0;i<T.length;i++){
-    const bucket=Math.floor(T[i]/ms)*ms;
-    if(!bT.length || bT[bT.length-1]!==bucket){ bT.push(bucket); bC.push(C[i]); }
+    const b=Math.floor(T[i]/ms)*ms;
+    if(!bT.length||bT[bT.length-1]!==b){ bT.push(b); bC.push(C[i]); }
     else bC[bC.length-1]=C[i];
   }
   const bMA=sma(bC,maN);
-  // bucket b 的趨勢在 b 收完後（下一個 bucket 起）才生效
-  const eff=new Map();
-  for(let j=0;j<bT.length;j++){
-    if(bMA[j]===null) continue;
-    eff.set(bT[j]+ms, bC[j]>bMA[j]?1:-1);
-  }
-  const out=new Array(T.length).fill(null);
-  let curTrend=null, sortedKeys=[...eff.keys()].sort((a,b)=>a-b), ki=0;
+  const out=new Int8Array(T.length); let ki=0, cur=0;
   for(let i=0;i<T.length;i++){
-    while(ki<sortedKeys.length && sortedKeys[ki]<=T[i]){ curTrend=eff.get(sortedKeys[ki]); ki++; }
-    out[i]=curTrend;
+    while(ki<bT.length && bT[ki]+ms<=T[i]){ if(bMA[ki]===bMA[ki]) cur = bC[ki]>bMA[ki]?1:-1; ki++; }
+    out[i]=cur;
   }
   return out;
 }
-function normCdf(z){ const t=1/(1+0.2316419*Math.abs(z)), d=0.3989423*Math.exp(-z*z/2);
-  const p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274)))); return z>0?1-p:p; }
-
-// 近30日漲跌幅（只用「已收完」的日K，t 時點查到的是昨日收盤 vs 31天前收盤）
+// 近 30 日漲跌幅：只用已收完的日 K（查到的是昨日收盤 vs 31 天前收盤）
 function ret30Map(T,C){
   const ms=86400e3, dT=[], dC=[];
   for(let i=0;i<T.length;i++){
@@ -265,164 +325,219 @@ function ret30Map(T,C){
     if(!dT.length||dT[dT.length-1]!==b){ dT.push(b); dC.push(C[i]); }
     else dC[dC.length-1]=C[i];
   }
-  const keys=[], vals=[];
-  for(let j=30;j<dT.length;j++){ keys.push(dT[j]+ms); vals.push(dC[j]/dC[j-30]-1); }
-  const out=new Array(T.length).fill(null);
-  let ki=0, cur=null;
+  const out=new Float64Array(T.length).fill(NaN); let j=30, cur=NaN;
   for(let i=0;i<T.length;i++){
-    while(ki<keys.length && keys[ki]<=T[i]){ cur=vals[ki]; ki++; }
+    while(j<dT.length && dT[j]+ms<=T[i]){ cur=dC[j]/dC[j-30]-1; j++; }
     out[i]=cur;
   }
   return out;
 }
+function normCdf(z){ const t=1/(1+0.2316419*Math.abs(z)), d=0.3989423*Math.exp(-z*z/2);
+  const p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274)))); return z>0?1-p:p; }
+
+// 訊號與結算。ind={mid,sd,t1h,r30}；cfg={H,bk,mode,dirSel,filtMode,filtTh,split,delay,hFrom,hTo}
+function simulate(T,C,ind,cfg){
+  const {mid,sd,t1h,r30}=ind;
+  const {H,bk,mode,dirSel,filtMode,filtTh,split}=cfg;
+  const delay=cfg.delay||0, hFrom=cfg.hFrom==null?0:cfg.hFrom, hTo=cfg.hTo==null?24:cfg.hTo;
+  const useF=filtMode!=="off", allHours=(hFrom===0&&hTo===24);
+  const N=C.length, trades=[]; let filteredOut=0, busyUntil=-1;
+  const midT=(T[0]+T[N-1])/2;
+  for(let i=0;i<N-H-2-delay;i++){
+    const e=i+1;
+    if(mid[i]!==mid[i] || mid[e]!==mid[e] || t1h[e]===0) continue;
+    if(T[e]<=busyUntil) continue;
+    if(split==="first"  && T[e]> midT) continue;
+    if(split==="second" && T[e]<=midT) continue;
+    // 突破根 i ＋ 確認根 e 都收在通道外同一側
+    const upBrk = C[i]>mid[i]+bk*sd[i] && C[e]>mid[e]+bk*sd[e];
+    const dnBrk = C[i]<mid[i]-bk*sd[i] && C[e]<mid[e]-bk*sd[e];
+    let dir=0;
+    if(upBrk && t1h[e]===1) dir=1;
+    else if(dnBrk && t1h[e]===-1) dir=-1;
+    if(!dir) continue;
+    if(useF){
+      const r=r30[e]; let pass=false;
+      if(filtMode==="on")            pass = r===r && Math.abs(r)<filtTh;
+      else if(filtMode==="hot_up")   pass = r===r && r>=filtTh;
+      else if(filtMode==="hot_down") pass = r===r && r<=-filtTh;
+      if(!pass){ filteredOut++; continue; }
+    }
+    if(mode==="fade") dir=-dir;
+    if(dirSel==="up" && dir!==1) continue;
+    if(dirSel==="down" && dir!==-1) continue;
+    if(!allHours){                                   // 只算自己醒著的時段（台灣時間）
+      const h=Math.floor((T[e]+60000+8*3600e3)/3600e3)%24;
+      const ok = hFrom<hTo ? (h>=hFrom&&h<hTo) : (h>=hFrom||h<hTo);
+      if(!ok) continue;
+    }
+    const ee=e+delay;                                // 確認根收盤後再晚 delay 分鐘才進場
+    if(T[ee]!==T[e]+delay*60000) continue;
+    const targetT=T[ee]+H*60000;
+    let j=ee+H; while(j<N && T[j]<targetT) j++;
+    if(j>=N || T[j]!==targetT) continue;             // 缺 K 跳過
+    const entry=C[ee], fin=C[j];
+    const outcome = fin===entry? "flat" : (fin>entry)===(dir===1)? "win":"loss";
+    let o0=outcome;                                  // 不延遲時的結果（延遲測試對帳用）
+    if(delay>0){
+      const t0=T[e]+H*60000; let j0=e+H; while(j0<N && T[j0]<t0) j0++;
+      o0 = (j0<N && T[j0]===t0) ? (C[j0]===C[e]?"flat":(C[j0]>C[e])===(dir===1)?"win":"loss") : null;
+    }
+    trades.push({t:T[ee], sig:T[e], dir:dir===1?"up":"down", entry, settle:fin, outcome, o0,
+                 ret:(fin/entry-1)*dir*1e4});
+    busyUntil=T[ee]+H*60000;
+  }
+  return {trades,filteredOut};
+}
+
+// 統計：勝率、以「日」群聚的穩健標準誤（同一天的訊號會一起輸贏，不能當成獨立樣本）
+function summarize(trades,payout){
+  const be=1/(1+payout);
+  const dec=trades.filter(x=>x.outcome!=="flat");
+  const n=dec.length; let w=0;
+  const byDay=new Map();
+  let sumRet=0, sw=0, sl=0, tiny=0;
+  for(const x of dec){
+    const win=x.outcome==="win"; if(win) w++;
+    const d=Math.floor(x.t/86400e3); let g=byDay.get(d); if(!g){ g={n:0,w:0}; byDay.set(d,g); }
+    g.n++; if(win) g.w++;
+    sumRet+=x.ret; if(win) sw+=x.ret; else sl+=x.ret;
+    if(Math.abs(x.ret)<2) tiny++;
+  }
+  const wr=n?w/n:NaN;
+  let ss=0; for(const g of byDay.values()) ss+=(g.w-wr*g.n)**2;
+  const G=byDay.size;
+  const seB=n?Math.sqrt(wr*(1-wr)/n):NaN;
+  const seC=(n&&G>1)?Math.sqrt(ss*G/(G-1))/n:NaN;
+  const se=Math.max(seB||0, seC||0);
+  const ev=wr*payout-(1-wr);
+  return { dec,n,w,wr,be,se, lo:Math.max(0,wr-1.96*se), hi:Math.min(1,wr+1.96*se),
+    p: se>0 ? 1-normCdf((wr-be)/se) : NaN, ev,
+    sdU: Math.sqrt(Math.max(0, wr*payout*payout+(1-wr)-ev*ev)),
+    meanRet:n?sumRet/n:NaN, avgWin:w?sw/w:NaN, avgLoss:(n-w)?sl/(n-w):NaN, tinyShare:n?tiny/n:NaN };
+}
+// <<CORE-END>>
+
+function readCfg(){
+  const clamp=(v,a,b,d)=>{ v=+v; return (v===v)?Math.min(b,Math.max(a,v)):d; };
+  return {
+    sym:$("sym").value, months:+$("months").value,
+    H:+$("hz").value, h1ma:Math.round(clamp($("h1ma").value,2,200,3)),
+    bn:Math.round(clamp($("bolln").value,5,300,99)), bk:clamp($("bollk").value,0.5,5,3),
+    mode:$("mode").value, dirSel:$("dirSel").value,
+    filtMode:$("filt").value, filtTh:clamp($("filtTh").value,5,90,30)/100,
+    split:$("split").value, delay:+$("delay").value,
+    hFrom:Math.round(clamp($("hFrom").value,0,23,0)), hTo:Math.round(clamp($("hTo").value,1,24,24)),
+    payout:clamp($("payout").value,0.5,1,0.8),
+  };
+}
 
 async function run(){
   $("runBtn").disabled=true; $("resCard").style.display="none";
-  const sym=$("sym").value, months=+$("months").value, H=+$("hz").value;
-  const h1ma=+$("h1ma").value, bn=+$("bolln").value, bk=+$("bollk").value;
-  const mode=$("mode").value;
-  const filtMode=$("filt").value, filtTh=(+$("filtTh").value||25)/100;
-  const useF=filtMode!=="off";
-  const split=$("split").value;
-  const dirSel=$("dirSel").value;
+  const cfg=readCfg();
+  PAYOUT=cfg.payout; BREAKEVEN=1/(1+PAYOUT);
   try{
-    const {t:T,c:C}=await loadData(sym,months);
-    if(T.length<5000){ $("status").textContent="資料不足，請重試"; $("runBtn").disabled=false; return; }
-    $("status").textContent="計算指標與訊號中…";
-    await new Promise(r=>setTimeout(r,30));
-
-    const mid=sma(C,bn), sd=rollStd(C,bn), t1h=trendMap(T,C,60,h1ma);
-    const r30 = useF ? ret30Map(T,C) : null;
-    let filteredOut = 0;
-
-    const trades=[];
-    const midT=(T[0]+T[T.length-1])/2;   // 期中點：前半調參、後半驗證
-    let busyUntil=-1;
-    for(let i=0;i<C.length-H-2;i++){
-      if(mid[i]===null || mid[i+1]===null || t1h[i+1]===null) continue;
-      if(T[i+1]<=busyUntil) continue;
-      if(split==="first"  && T[i+1]> midT) continue;
-      if(split==="second" && T[i+1]<=midT) continue;
-      // 突破根 i ＋ 確認根 i+1 都收在通道外同一側，才在 i+1 收盤進場
-      const upBrk = C[i]>mid[i]+bk*sd[i]   && C[i+1]>mid[i+1]+bk*sd[i+1];
-      const dnBrk = C[i]<mid[i]-bk*sd[i]   && C[i+1]<mid[i+1]-bk*sd[i+1];
-      let dir=0;
-      if(upBrk && t1h[i+1]===1) dir=1;
-      else if(dnBrk && t1h[i+1]===-1) dir=-1;
-      if(!dir) continue;
-      if(useF){
-        const r=r30[i+1];
-        let pass=false;
-        if(filtMode==="on")            pass = r!==null && Math.abs(r)<filtTh;   // 避開暴走
-        else if(filtMode==="hot_up")   pass = r!==null && r>=filtTh;            // 只做暴漲
-        else if(filtMode==="hot_down") pass = r!==null && r<=-filtTh;           // 只做暴跌
-        if(!pass){ filteredOut++; continue; }
-      }
-      if(mode==="fade") dir=-dir;          // 逆勢：同樣的訊號，反向押
-      if(dirSel==="up" && dir!==1) continue;
-      if(dirSel==="down" && dir!==-1) continue;
-      const e=i+1;
-      const targetT=T[e]+H*60000;
-      let j=e+H;
-      while(j<T.length && T[j]<targetT) j++;
-      if(j>=T.length || T[j]!==targetT) continue;   // 缺K跳過
-      const entry=C[e], fin=C[j];
-      const outcome = fin===entry? "flat" : (fin>entry)===(dir===1)? "win":"loss";
-      trades.push({t:T[e], dir:dir===1?"up":"down", entry, settle:fin, outcome});
-      busyUntil=T[e]+H*60000;
-    }
-    render(trades, sym, months, H, filteredOut);
+    const {t:T,c:C}=await loadData(cfg.sym,cfg.months);
+    if(T.length<5000){ setStatus("資料不足，請重試"); $("runBtn").disabled=false; return; }
+    setStatus("計算指標與訊號中…");
+    await sleep(30);
+    const ind={ mid:sma(C,cfg.bn), sd:rollStd(C,cfg.bn), t1h:trendMap(T,C,60,cfg.h1ma),
+                r30: cfg.filtMode!=="off" ? ret30Map(T,C) : null };
+    const {trades,filteredOut}=simulate(T,C,ind,cfg);
+    lastRun={cfg, data:{T,C}, ind:{t1h:ind.t1h,r30:ind.r30}, trades,
+             spanDays:(T[T.length-1]-T[0])/86400e3};
+    $("latency").innerHTML=""; $("sens").innerHTML=""; $("latStatus").textContent=""; $("gridStatus").textContent="";
+    render(lastRun, filteredOut);
   }catch(e){
-    $("status").textContent="發生錯誤："+e.message;
+    setStatus("發生錯誤："+e.message);
   }
   $("runBtn").disabled=false;
 }
 
-function render(trades, sym, months, H, filteredOut=0){
-  lastTrades=trades;
-  const dec=trades.filter(x=>x.outcome!=="flat");
-  const n=dec.length, w=dec.filter(x=>x.outcome==="win").length;
-  if(n<1){ $("status").textContent="沒有產生任何訊號 — 放寬參數試試"; return; }
-  const wr=w/n, ev=wr*PAYOUT-(1-wr);
-  let worst=0,cur=0,pnl=0; const eq=[];
-  for(const x of dec){ pnl += x.outcome==="win"? STAKE*PAYOUT : -STAKE; eq.push(pnl);
-    cur = x.outcome==="loss"? cur+1:0; worst=Math.max(worst,cur); }
-  const mu=n*BREAKEVEN, sdv=Math.sqrt(n*BREAKEVEN*(1-BREAKEVEN));
-  const p=1-normCdf((w-0.5-mu)/sdv);
-
+function render(R, filteredOut){
+  const {cfg,trades}=R;
+  const S=summarize(trades,PAYOUT), dec=S.dec, n=S.n;
+  if(n<1){ setStatus("沒有產生任何訊號 — 放寬參數試試"); return; }
+  let worst=0,cur=0,pnl=0,lo=0,hi=1; const eq=new Float64Array(n);
+  dec.forEach((x,i)=>{ pnl += x.outcome==="win"? STAKE*PAYOUT : -STAKE; eq[i]=pnl;
+    if(pnl<lo) lo=pnl; if(pnl>hi) hi=pnl;
+    cur = x.outcome==="loss"? cur+1:0; if(cur>worst) worst=cur; });
   const upT=dec.filter(x=>x.dir==="up"), dnT=dec.filter(x=>x.dir==="down");
   const upW=upT.filter(x=>x.outcome==="win").length, dnW=dnT.filter(x=>x.outcome==="win").length;
+  const days=Math.max(1,(dec[n-1].t-dec[0].t)/86400e3), perDay=n/days, perMonth=perDay*30;
+  const beTxt=pct(BREAKEVEN);
 
   const cell=(l,v,s,c)=>`<div class="st"><div class="l">${l}</div><div class="v mono" style="color:${c||"var(--text)"}">${v}</div><div class="s">${s}</div></div>`;
   $("statGrid").innerHTML =
-    cell("訊號筆數",`${n}`,`持平剔除 ${trades.length-n}${filteredOut?`・濾網擋下 ${filteredOut}`:""}`)+
-    cell("勝率",(wr*100).toFixed(1)+"%",`兩平線 55.6%`, wr>BREAKEVEN?"var(--up)":"var(--down)")+
-    cell("每1U期望值",(ev>=0?"+":"")+ev.toFixed(3)+"U","賠率 0.8", ev>=0?"var(--up)":"var(--down)")+
+    cell("訊號筆數",`${n}`,`每天約 ${perDay.toFixed(1)} 筆`)+
+    cell("勝率",pct(S.wr),`兩平線 ${beTxt}`, S.wr>BREAKEVEN?"var(--up)":"var(--down)")+
+    cell("勝率 95% 區間",`${(S.lo*100).toFixed(1)}–${(S.hi*100).toFixed(1)}%`,"已修正同日連動",
+         S.lo>BREAKEVEN?"var(--up)":S.wr>BREAKEVEN?"var(--acc)":"var(--down)")+
+    cell("每1U期望值",(S.ev>=0?"+":"")+S.ev.toFixed(3)+"U",`支付率 ${PAYOUT.toFixed(2)}`, S.ev>=0?"var(--up)":"var(--down)")+
     cell("總損益",(pnl>=0?"+":"")+pnl.toFixed(0)+"U",`固定 ${STAKE}U/筆`, pnl>=0?"var(--up)":"var(--down)")+
     cell("最長連敗",worst+" 筆","")+
     cell("押漲/押跌", `${upT.length?(upW/upT.length*100).toFixed(0):"-"}% / ${dnT.length?(dnW/dnT.length*100).toFixed(0):"-"}%`,
-      `${upT.length}筆 / ${dnT.length}筆`);
+      `${upT.length}筆 / ${dnT.length}筆`)+
+    cell("平均方向報酬",(S.meanRet>=0?"+":"")+S.meanRet.toFixed(1)+" bps",
+      `贏 +${S.avgWin.toFixed(0)} / 輸 ${S.avgLoss.toFixed(0)}`, S.meanRet>=0?"var(--up)":"var(--down)");
 
-  let verdict;
-  if(p<0.05 && wr>BREAKEVEN) verdict=`p ≈ ${p.toFixed(4)} — 統計上顯著贏過兩平線，這套機械規則可能真的有 edge。先小額照規則手動執行驗證。`;
-  else if(wr>BREAKEVEN) verdict=`p ≈ ${p.toFixed(3)} — 勝率高於兩平線但樣本不足以排除運氣，需要更長期間或更多訊號。`;
-  else verdict=`p ≈ ${p.toFixed(3)} — 這套機械規則在此期間沒有贏過兩平線。你實盤若有 edge，來源可能在規則之外的主觀判斷，或近期行情剛好順風。`;
+  let verdict=`勝率 ${pct(S.wr)}，95% 區間 ${pct(S.lo)}～${pct(S.hi)}。`;
+  if(S.lo>BREAKEVEN) verdict+=`連區間下緣都高於兩平線 ${beTxt} — 在這組「支付率／延遲／時段」假設下，統計上站得住。`;
+  else if(S.wr>BREAKEVEN) verdict+=`勝率高於兩平線 ${beTxt}，但區間下緣沒過線 — 還不能排除只是運氣。`;
+  else verdict+=`沒有贏過兩平線 ${beTxt}。在這組假設下這套規則是虧的。`;
   $("verdict").textContent=verdict;
+
+  const monthEV=S.ev*STAKE*perMonth, monthSD=Math.sqrt(perMonth)*STAKE*S.sdU;
+  $("reality").innerHTML=
+    `<b style="color:var(--dim)">換算成實際收益：</b>照這個頻率每月約 ${perMonth.toFixed(0)} 筆（前提是每一筆都有下到）。每筆押 ${STAKE}U，`+
+    `期望月損益約 ${monthEV>=0?"+":""}${monthEV.toFixed(1)}U，但單月的正常波動約 ±${monthSD.toFixed(0)}U — 一個月的輸贏大部分是運氣，要看幾百筆。`+
+    `<br><b style="color:var(--dim)">邊緣單：</b>漲跌幅不到 2 bps 的單佔 ${pct(S.tinyShare)}，這些在實戰中換個價格來源或慢一秒就可能翻盤。`+
+    `<br><b style="color:var(--dim)">如果搬去期貨：</b>平均每筆方向報酬 ${S.meanRet>=0?"+":""}${S.meanRet.toFixed(1)} bps，期貨來回手續費約 7–10 bps，要高過它才有賺。`+
+    (filteredOut?`<br>持平 ${trades.length-n} 筆・行情篩選擋下 ${filteredOut} 次。`:`<br>持平 ${trades.length-n} 筆。`);
 
   // 權益曲線
   const cv=$("eq"), ctx=cv.getContext("2d");
   const dpr=window.devicePixelRatio||1, W=cv.clientWidth||600, Hh=160;
   cv.width=W*dpr; cv.height=Hh*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.fillStyle="#0B0E14"; ctx.fillRect(0,0,W,Hh);
-  const lo=Math.min(0,...eq), hi=Math.max(0,...eq,1);
-  const X=i=>i/(eq.length-1||1)*(W-10)+5, Y=v=>8+(1-(v-lo)/(hi-lo))*(Hh-16);
+  const X=i=>i/(n-1||1)*(W-10)+5, Y=v=>8+(1-(v-lo)/(hi-lo))*(Hh-16);
   ctx.strokeStyle="#2A3140"; ctx.beginPath(); ctx.moveTo(0,Y(0)); ctx.lineTo(W,Y(0)); ctx.stroke();
   ctx.strokeStyle=pnl>=0?"#0ECB81":"#F6465D"; ctx.lineWidth=1.5; ctx.beginPath();
-  eq.forEach((v,i)=>{ i?ctx.lineTo(X(i),Y(v)):ctx.moveTo(X(i),Y(v)); }); ctx.stroke();
+  const stepPx=Math.max(1,Math.floor(n/2000));
+  for(let i=0;i<n;i+=stepPx){ i?ctx.lineTo(X(i),Y(eq[i])):ctx.moveTo(X(i),Y(eq[i])); }
+  ctx.lineTo(X(n-1),Y(eq[n-1])); ctx.stroke();
 
-  // 前半 / 後半 穩健性檢查（同一組參數，自動切兩半）
+  // 前半 / 後半
   (function(){
-    if(dec.length<40){ $("halves").innerHTML=`<div class="hint">訊號太少，無法做前後半對照。</div>`; return; }
-    const t0=dec[0].t, t1=dec[dec.length-1].t, mid=(t0+t1)/2;
-    const seg=(arr,label)=>{
-      if(!arr.length) return {label,n:0};
-      const w=arr.filter(x=>x.outcome==="win").length, r=w/arr.length;
-      const ev=r*PAYOUT-(1-r);
-      const mu=arr.length*BREAKEVEN, sdv=Math.sqrt(arr.length*BREAKEVEN*(1-BREAKEVEN));
-      return {label, n:arr.length, r, ev, pnl:w*STAKE*PAYOUT-(arr.length-w)*STAKE,
-              p:1-normCdf((w-0.5-mu)/sdv),
-              span:`${new Date(arr[0].t).toISOString().slice(0,7)} ~ ${new Date(arr[arr.length-1].t).toISOString().slice(0,7)}`};
-    };
+    if(n<40){ $("halves").innerHTML=`<div class="hint">訊號太少，無法做前後半對照。</div>`; return; }
+    const mid=(dec[0].t+dec[n-1].t)/2;
+    const seg=(arr,label)=>{ const s=summarize(arr,PAYOUT); if(!s.n) return null;
+      return {label,s,pnl:s.w*STAKE*PAYOUT-(s.n-s.w)*STAKE,
+        span:`${new Date(arr[0].t).toISOString().slice(0,7)} ~ ${new Date(arr[arr.length-1].t).toISOString().slice(0,7)}`}; };
     const A=seg(dec.filter(x=>x.t<=mid),"前半段"), B=seg(dec.filter(x=>x.t>mid),"後半段");
-    const row=s=>s.n? `<tr>
-        <td style="padding:5px 10px 5px 0"><b>${s.label}</b><div class="hint">${s.span}</div></td>
-        <td class="mono" style="padding:5px 10px;color:${s.r>BREAKEVEN?"var(--up)":"var(--down)"}">${(s.r*100).toFixed(1)}%</td>
-        <td class="mono" style="padding:5px 10px;color:${s.ev>=0?"var(--up)":"var(--down)"}">${s.ev>=0?"+":""}${s.ev.toFixed(3)}U</td>
-        <td class="mono" style="padding:5px 10px;color:${s.pnl>=0?"var(--up)":"var(--down)"}">${s.pnl>=0?"+":""}${s.pnl.toFixed(0)}U</td>
-        <td class="mono" style="padding:5px 10px">${s.n}</td>
-        <td class="mono" style="padding:5px 0">${s.p<0.001?"<0.001":s.p.toFixed(3)}</td></tr>` : "";
-    const gap=(A.n&&B.n)? Math.abs(A.r-B.r)*100 : null;
+    const row=g=>g?`<tr><td><b>${g.label}</b><div class="hint">${g.span}</div></td>
+      <td class="mono" style="color:${g.s.wr>BREAKEVEN?"var(--up)":"var(--down)"}">${pct(g.s.wr)}</td>
+      <td class="mono">${(g.s.lo*100).toFixed(1)}–${(g.s.hi*100).toFixed(1)}%</td>
+      <td class="mono" style="color:${g.pnl>=0?"var(--up)":"var(--down)"}">${g.pnl>=0?"+":""}${g.pnl.toFixed(0)}U</td>
+      <td class="mono">${g.s.n}</td></tr>`:"";
     let note="";
-    if(gap!==null){
-      const bothOk = A.r>BREAKEVEN && B.r>BREAKEVEN;
-      note = bothOk && gap<3
-        ? `<div style="color:var(--up);margin-top:6px">✓ 兩半段都高於兩平線、差距 ${gap.toFixed(1)} 個百分點 — 穩健，不像是擬合出來的。</div>`
-        : bothOk
-        ? `<div style="color:var(--acc);margin-top:6px">兩半段都過線，但差距 ${gap.toFixed(1)} 個百分點偏大，優勢可能隨市場結構變動。</div>`
-        : `<div style="color:var(--down);margin-top:6px">✗ 有一半沒過兩平線（差距 ${gap.toFixed(1)} 個百分點）— 這組參數的優勢不穩定，不要直接拿去實戰。</div>`;
+    if(A&&B){
+      const gap=Math.abs(A.s.wr-B.s.wr)*100, bothOk=A.s.wr>BREAKEVEN&&B.s.wr>BREAKEVEN;
+      const st=c=>`style="color:var(${c});margin-top:6px;font-size:12.5px"`;
+      note = bothOk&&gap<3 ? `<div ${st("--up")}>兩半段都高於兩平線、差距 ${gap.toFixed(1)} 個百分點 — 時間上穩定。</div>`
+        : bothOk ? `<div ${st("--acc")}>兩半段都過線，但差距 ${gap.toFixed(1)} 個百分點偏大，優勢會隨市場結構變動。</div>`
+        : `<div ${st("--down")}>有一半沒過兩平線（差距 ${gap.toFixed(1)} 個百分點）— 不穩定，不要直接拿去實戰。</div>`;
     }
-    $("halves").innerHTML=`<table style="font-size:12.5px;border-collapse:collapse">
-      <tr style="color:var(--dim);font-size:11px"><td></td><td style="padding:0 10px">勝率</td>
-      <td style="padding:0 10px">每1U</td><td style="padding:0 10px">損益</td>
-      <td style="padding:0 10px">筆數</td><td>p值</td></tr>${row(A)}${row(B)}</table>${note}`;
+    $("halves").innerHTML=`<div class="scroll"><table class="t"><tr><th></th><th>勝率</th><th>95% 區間</th><th>損益</th><th>筆數</th></tr>${row(A)}${row(B)}</table></div>${note}
+      <div class="hint" style="margin-top:4px">注意：參數是看過整段資料才選的，所以這只能說明「時間上穩不穩」，不算真正沒看過的資料。真正的驗證是換幣種、以及今天之後的新資料。</div>`;
   })();
 
   // 分月
   const bym=new Map();
   for(const x of dec){
     const d=new Date(x.t), key=`${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,"0")}`;
-    if(!bym.has(key)) bym.set(key,{w:0,n:0});
-    const g=bym.get(key); g.n++; if(x.outcome==="win") g.w++;
+    let g=bym.get(key); if(!g){ g={w:0,n:0}; bym.set(key,g); }
+    g.n++; if(x.outcome==="win") g.w++;
   }
   $("monthly").innerHTML=[...bym.entries()].map(([k,g])=>{
     const r=g.w/g.n;
@@ -431,35 +546,165 @@ function render(trades, sym, months, H, filteredOut=0){
       <span class="mono">${(r*100).toFixed(0)}%</span><span class="hint">(${g.n})</span></div>`;
   }).join("");
 
-  // 分時段（UTC 每 4 小時一段）
+  // 分時段（台灣時間，每 4 小時）
   const byh=new Map();
   for(const x of dec){
-    const h=new Date(x.t).getUTCHours(), key=Math.floor(h/4)*4;
-    if(!byh.has(key)) byh.set(key,{w:0,n:0});
-    const g=byh.get(key); g.n++; if(x.outcome==="win") g.w++;
+    const key=Math.floor((Math.floor((x.t+60000+8*3600e3)/3600e3)%24)/4)*4;
+    let g=byh.get(key); if(!g){ g={w:0,n:0}; byh.set(key,g); }
+    g.n++; if(x.outcome==="win") g.w++;
   }
   $("hourly").innerHTML=[...byh.entries()].sort((a,b)=>a[0]-b[0]).map(([k,g])=>{
     const r=g.w/g.n;
-    return `<div class="mrow"><span class="mono" style="width:96px">${String(k).padStart(2,"0")}–${String(k+4).padStart(2,"0")} UTC</span>
+    return `<div class="mrow"><span class="mono" style="width:84px">${String(k).padStart(2,"0")}–${String(k+4).padStart(2,"0")} 點</span>
       <div class="mbar" style="width:${(r*160).toFixed(0)}px;background:${r>BREAKEVEN?"var(--up)":"var(--down)"}"></div>
       <span class="mono">${(r*100).toFixed(0)}%</span><span class="hint">(${g.n})</span></div>`;
   }).join("");
 
-  $("status").textContent=`完成：${sym} 近 ${months} 個月，押 ${H} 分`;
+  setStatus(`完成：${cfg.sym} 近 ${cfg.months} 個月，押 ${cfg.H} 分`);
   $("progFill").style.width="100%";
   $("resCard").style.display="block";
 }
 
+// ─── 延遲測試：用 1 秒 K 線，看晚幾秒進場勝率剩多少 ─────
+const LAT=[0,5,10,15,20,30,45,60,90,120,180,300];
+function priceAt(rows,tau){                 // tau 這一刻的價格 = 開盤時間 ≤ tau-1 秒的最後一根收盤
+  let p=null, pt=0;
+  for(const k of rows){ if(k[0]<=tau-1000){ p=+k[4]; pt=k[0]; } else break; }
+  return (p!==null && tau-1000-pt<=15000) ? p : null;      // 超過 15 秒沒資料視為缺
+}
+async function latencyStudy(){
+  const R=lastRun; if(!R||!R.trades.length) return;
+  $("latBtn").disabled=true; $("latency").innerHTML="";
+  const N=+$("latN").value, sigs=R.trades.filter(x=>x.outcome!=="flat").slice(-N);
+  const H=R.cfg.H, sym=R.cfg.sym;
+  const rows=[]; let miss=0, agree=0, agreeN=0;
+  for(let b=0;b<sigs.length;b+=4){
+    await Promise.all(sigs.slice(b,b+4).map(async s=>{
+      const t0=s.sig+60000, sgn=s.dir==="up"?1:-1;      // t0 = 確認根收盤的那一刻
+      try{
+        const [A,B]=await Promise.all([
+          api(`/api/v3/klines?symbol=${sym}&interval=1s&startTime=${t0-3000}&limit=320`,3),
+          api(`/api/v3/klines?symbol=${sym}&interval=1s&startTime=${t0+H*60000-3000}&limit=320`,3)]);
+        const p0=priceAt(A,t0);
+        const row=LAT.map(d=>{
+          const pin=priceAt(A,t0+d*1000), pout=priceAt(B,t0+d*1000+H*60000);
+          if(pin===null||pout===null) return null;
+          return { w: pin===pout ? null : (((pout>pin)===(sgn===1))?1:0),      // 這個延遲下注的輸贏
+                   mv: p0!==null ? (pin/p0-1)*1e4*sgn : null };                 // 等待期間價格已往有利方向走多少
+        });
+        if(row.every(v=>v===null)){ miss++; return; }
+        rows.push(row);
+        if(row[0] && row[0].w!==null && (s.o0==="win"||s.o0==="loss")){ agreeN++; if((row[0].w===1)===(s.o0==="win")) agree++; }
+      }catch(e){ miss++; }
+    }));
+    $("latStatus").textContent=`${Math.min(sigs.length,b+4)}/${sigs.length}`;
+    await sleep(throttleMs);
+  }
+  if(rows.length<20){
+    $("latency").innerHTML=`<div class="hint" style="color:var(--down)">只拿到 ${rows.length} 筆 1 秒資料（缺 ${miss} 筆），不足以判斷。可能是這段期間幣安沒有提供 1 秒 K 線，或網路不穩，稍後再試。</div>`;
+    $("latBtn").disabled=false; return;
+  }
+  const stat=LAT.map((d,k)=>{
+    let w=0,n=0,sd=0,sd2=0,m=0,mv=0,mn=0;
+    for(const r of rows){
+      const c=r[k]; if(!c) continue;
+      if(c.mv!==null){ mv+=c.mv; mn++; }
+      if(c.w===null) continue;
+      n++; w+=c.w;
+      if(r[0] && r[0].w!==null){ const df=c.w-r[0].w; sd+=df; sd2+=df*df; m++; }
+    }
+    const md=m?sd/m:NaN;
+    return {d,n,wr:n?w/n:NaN,md,half:m>1?1.96*Math.sqrt(Math.max(0,sd2/m-md*md)/m):NaN,mv:mn?mv/mn:NaN};
+  });
+  const lab=d=>d<60?`${d} 秒`:`${d/60} 分`;
+  const body=stat.map(s=>`<tr><td>${s.d===0?"0（理想）":"晚 "+lab(s.d)}</td>
+    <td class="mono" style="color:${s.wr>BREAKEVEN?"var(--up)":"var(--down)"}">${pct(s.wr)}</td>
+    <td class="mono">${s.d===0?"—":`${s.md>=0?"+":""}${(s.md*100).toFixed(1)} <span class="hint">±${(s.half*100).toFixed(1)}</span>`}</td>
+    <td class="mono">${s.d===0?"—":`${s.mv>=0?"+":""}${s.mv.toFixed(1)}`}</td>
+    <td class="mono">${s.n}</td></tr>`).join("");
+  const at=d=>stat.find(s=>s.d===d);
+  const s0=at(0), s30=at(30), s60=at(60);
+  const e0=s0.wr-BREAKEVEN, e30=s30.wr-BREAKEVEN, e60=s60.wr-BREAKEVEN;
+  let v=`理想進場 ${pct(s0.wr)} → 晚 30 秒 ${pct(s30.wr)} → 晚 60 秒 ${pct(s60.wr)}（兩平線 ${pct(BREAKEVEN)}）。`;
+  if(e0<=0) v+=`這批訊號連理想進場都沒過兩平線，延遲不是重點。`;
+  else if(e60>=0.6*e0) v+=`慢一分鐘還保有大部分優勢 — 手動下單可行。`;
+  else if(e30>=0.5*e0) v+=`30 秒內還保有一半以上的優勢，拖到 1 分鐘就所剩不多 — 手動可以做，但通知一響就要下，慢了寧可放棄那一筆。`;
+  else if(e30>0) v+=`晚 30 秒優勢就掉了一大半 — 非常吃手速，手動下單實際拿到的會比回測差很多。`;
+  else v+=`晚 30 秒就掉到兩平線以下 — 優勢集中在最初幾秒，手動下單吃不到。`;
+  if(e0>0 && s30.half>e0) v+=`（注意：樣本只有 ${rows.length} 筆，誤差比優勢本身還大，這個結論只能當參考，請選更多筆重跑。）`;
+  $("latency").innerHTML=`<div class="scroll"><table class="t"><tr><th>進場時間</th><th>勝率</th><th>與理想相比（百分點）</th><th>等待時已先走（bps）</th><th>筆數</th></tr>${body}</table></div>
+    <div class="verdict">${v}</div>
+    <div class="hint" style="margin-top:4px">樣本 ${rows.length} 筆${miss?`（缺資料 ${miss} 筆）`:""}。「與理想相比」後面的 ± 是 95% 誤差範圍；「等待時已先走」是你還沒下單時，價格平均已經往你要押的方向走了多少 — 正值越大代表反彈來得越快、晚進場越吃虧。`+
+    (agreeN?`對帳：0 秒這格與 1 分 K 回測結果一致率 ${pct(agree/agreeN,0)}（應接近 100%）。`:"")+`</div>`;
+  $("latBtn").disabled=false;
+}
+
+// ─── 參數敏感度：鄰近參數是否一樣好 ─────────────────────
+async function sensitivity(){
+  const R=lastRun; if(!R) return;
+  $("gridBtn").disabled=true; $("sens").innerHTML="";
+  const {T,C}=R.data, base=R.cfg;
+  const uniq=a=>[...new Set(a)].sort((x,y)=>x-y);
+  const ns=uniq([0.6,0.8,1,1.25,1.5].map(f=>Math.max(5,Math.round(base.bn*f))));
+  const ks=uniq([-0.5,-0.25,0,0.25,0.5].map(d=>+(base.bk+d).toFixed(2)).filter(v=>v>=0.5));
+  const mas=uniq([2,3,5,9,20,base.h1ma]);
+  const cells={}, total=ns.length*ks.length+mas.length; let done=0;
+  for(const n of ns){
+    const mid=sma(C,n), sd=rollStd(C,n);
+    for(const k of ks){
+      const S=summarize(simulate(T,C,{mid,sd,t1h:R.ind.t1h,r30:R.ind.r30},{...base,bk:k}).trades,PAYOUT);
+      cells[n+"|"+k]={wr:S.wr,n:S.n};
+      $("gridStatus").textContent=`${++done}/${total}`; await sleep(5);
+    }
+  }
+  const mid0=sma(C,base.bn), sd0=rollStd(C,base.bn), maRes=[];
+  for(const m of mas){
+    const S=summarize(simulate(T,C,{mid:mid0,sd:sd0,t1h:trendMap(T,C,60,m),r30:R.ind.r30},base).trades,PAYOUT);
+    maRes.push({m,wr:S.wr,n:S.n});
+    $("gridStatus").textContent=`${++done}/${total}`; await sleep(5);
+  }
+  const td=(c,isCur)=>`<td class="mono${isCur?" cur":""}" style="color:${c.n<50?"var(--faint)":c.wr>BREAKEVEN?"var(--up)":"var(--down)"}">${c.n?pct(c.wr):"—"}<div class="hint">${c.n}</div></td>`;
+  const head=`<tr><th>BOLL ＼ σ</th>${ks.map(k=>`<th>${k}</th>`).join("")}</tr>`;
+  const body=ns.map(n=>`<tr><td class="mono">${n}</td>${ks.map(k=>td(cells[n+"|"+k], n===base.bn&&k===base.bk)).join("")}</tr>`).join("");
+  const maRow=`<tr><th>1H MA</th>${maRes.map(r=>`<th>${r.m}</th>`).join("")}</tr><tr><td class="hint">勝率</td>${maRes.map(r=>td(r,r.m===base.h1ma)).join("")}</tr>`;
+  const center=cells[base.bn+"|"+base.bk];
+  const others=Object.entries(cells).filter(([key,v])=>key!==base.bn+"|"+base.bk && v.n>=100).map(([,v])=>v);
+  let v="";
+  if(center && others.length>=4){
+    const above=others.filter(o=>o.wr>BREAKEVEN).length;
+    const sorted=others.map(o=>o.wr).sort((a,b)=>a-b), med=sorted[Math.floor(sorted.length/2)];
+    const rank=1+others.filter(o=>o.wr>center.wr).length;
+    v=`鄰近 ${others.length} 組參數中 ${above} 組過兩平線；鄰居中位數 ${pct(med)}，你這組 ${pct(center.wr)}（排第 ${rank}）。`;
+    if(above/others.length>=0.75 && center.wr-med<=0.015) v+=`是「高原」：參數動一點結果差不多，不像是挑出來的。實戰預期抓鄰居中位數比較保險。`;
+    else if(center.wr-med>0.025) v+=`像「尖峰」：只有你這組特別好、旁邊都掉下去，被挑出來的成分高，實戰要以鄰居中位數打折看。`;
+    else v+=`介於中間：有優勢，但對參數有點敏感。實戰預期抓鄰居中位數。`;
+  }
+  $("sens").innerHTML=`<div class="scroll"><table class="t">${head}${body}</table></div>
+    <div class="scroll" style="margin-top:8px"><table class="t">${maRow}</table></div>
+    ${v?`<div class="verdict">${v}</div>`:""}
+    <div class="hint" style="margin-top:4px">每格上面是勝率、下面是筆數；黃框是目前這組。這張表是用來「看穩不穩」，不是用來再挑一組更高的 — 挑了就又多一層美化。</div>`;
+  $("gridBtn").disabled=false;
+}
+
 $("csvBtn").onclick=()=>{
-  if(!lastTrades) return;
-  const head="time,direction,outcome,entry,settle";
-  const rows=lastTrades.map(x=>[new Date(x.t).toISOString(),x.dir,x.outcome,x.entry,x.settle].join(","));
-  const blob=new Blob(["\uFEFF"+head+"\n"+rows.join("\n")],{type:"text/csv;charset=utf-8"});
+  if(!lastRun) return;
+  const head="entry_time,signal_time,direction,outcome,entry,settle,ret_bps";
+  const rows=lastRun.trades.map(x=>[new Date(x.t+60000).toISOString(),new Date(x.sig+60000).toISOString(),
+    x.dir,x.outcome,x.entry,x.settle,x.ret.toFixed(2)].join(","));
+  const blob=new Blob(["﻿"+head+"\n"+rows.join("\n")],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob); a.download="backtest_trades.csv"; a.click();
   URL.revokeObjectURL(a.href);
 };
+$("presetBtn").onclick=()=>{
+  const set={months:"120",hz:"10",mode:"fade",dirSel:"up",h1ma:"3",bolln:"99",bollk:"3",
+    filt:"on",filtTh:"30",split:"all",payout:"0.80",delay:"0",hFrom:"0",hTo:"24"};
+  for(const k in set) $(k).value=set[k];
+  setStatus("已套用定案策略：逆勢、只押漲、MA 3 / BOLL 99 / σ 3、避開暴走 30%。");
+};
 $("runBtn").onclick=run;
+$("latBtn").onclick=latencyStudy;
+$("gridBtn").onclick=sensitivity;
 </script>
 </body>
 </html>
