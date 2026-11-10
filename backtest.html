@@ -85,6 +85,8 @@
     <div id="verdict"></div>
     <div style="margin-top:14px"><canvas id="eq" height="160"></canvas></div>
     <div class="hint" style="text-align:center">固定 20U 累計損益曲線（依訊號序）</div>
+    <div style="margin-top:14px;font-size:12.5px;color:var(--dim)">穩健性檢查：前半段 vs 後半段（同一組參數）</div>
+    <div id="halves" style="margin-top:6px"></div>
     <div style="margin-top:14px;font-size:12.5px;color:var(--dim)">分月勝率（訊號筆數）</div>
     <div id="monthly" style="margin-top:6px"></div>
     <div style="margin-top:14px;font-size:12.5px;color:var(--dim)">分時段勝率（UTC，台灣時間 = UTC+8）</div>
@@ -106,44 +108,110 @@
 const HOSTS=["https://data-api.binance.vision","https://api.binance.com"];
 const PAYOUT=0.8, BREAKEVEN=1/1.8, STAKE=20;
 const $=id=>document.getElementById(id);
-const cache={};   // symbol → {t:[],c:[]}
+const cache={};   // symbol_months → {t:[],c:[]}（本次頁面）
 let lastTrades=null;
 
-async function api(path){
-  for(const h of HOSTS){
-    try{ const r=await fetch(h+path); if(r.ok){ const j=await r.json(); if(Array.isArray(j)) return j; } }catch(e){}
+// ─── IndexedDB 永久快取：下載過的資料重開頁面還在 ───────
+const DB_NAME="btc-backtest-cache", STORE="klines";
+function idb(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(DB_NAME,1);
+    r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains(STORE)) r.result.createObjectStore(STORE); };
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  });
+}
+async function idbGet(key){
+  try{
+    const db=await idb();
+    return await new Promise((res,rej)=>{
+      const q=db.transaction(STORE,"readonly").objectStore(STORE).get(key);
+      q.onsuccess=()=>res(q.result||null); q.onerror=()=>rej(q.error);
+    });
+  }catch(e){ return null; }
+}
+async function idbPut(key,val){
+  try{
+    const db=await idb();
+    await new Promise((res,rej)=>{
+      const q=db.transaction(STORE,"readwrite").objectStore(STORE).put(val,key);
+      q.onsuccess=()=>res(); q.onerror=()=>rej(q.error);
+    });
+    return true;
+  }catch(e){ return false; }
+}
+
+// ─── 具重試與退避的抓取（遇 429/418 自動降速）──────────
+let throttleMs=220;          // 動態間隔
+async function apiOnce(host,path){
+  const r=await fetch(host+path);
+  if(r.status===429||r.status===418){
+    const wait=(+r.headers.get("retry-after")||5)*1000;
+    throttleMs=Math.min(2000, throttleMs*2);
+    const err=new Error("rate"); err.wait=wait; throw err;
   }
-  return null;
+  if(!r.ok) throw new Error("http"+r.status);
+  const j=await r.json();
+  if(!Array.isArray(j)) throw new Error("bad");
+  return j;
+}
+async function api(path,tries=6){
+  let lastErr=null;
+  for(let a=0;a<tries;a++){
+    for(const h of HOSTS){
+      try{ return await apiOnce(h,path); }
+      catch(e){
+        lastErr=e;
+        if(e.wait){ $("status").textContent=`幣安限流，暫停 ${Math.round(e.wait/1000)} 秒後自動續傳…`;
+                    await new Promise(r=>setTimeout(r,e.wait)); }
+      }
+    }
+    await new Promise(r=>setTimeout(r, 400*Math.pow(2,a)));   // 指數退避
+  }
+  throw lastErr||new Error("fetch failed");
 }
 
 async function loadData(sym, months){
   const key=sym+"_"+months;
   if(cache[key]) return cache[key];
+  const stored=await idbGet(key);
+  if(stored && stored.t && stored.t.length>5000){
+    const d={t:Array.from(stored.t), c:Array.from(stored.c)};
+    cache[key]=d;
+    $("status").textContent=`已從本機快取載入 ${d.t.length.toLocaleString()} 根（免重新下載）`;
+    $("progFill").style.width="100%";
+    return d;
+  }
   const end=Date.now()-2*86400e3;
   const start=end - months*30*86400e3;
-  const CHUNK=1000*60000;                 // 每段 1000 分鐘
+  const CHUNK=1000*60000;
   const starts=[];
   for(let cur=start; cur<end; cur+=CHUNK) starts.push(Math.floor(cur));
-  const T=[], C=[];
-  let done=0, lastT=-1;
-  const BATCH=8;                          // 8 路並發，兼顧速度與幣安限流
+  const parts=new Array(starts.length).fill(null);
+  let done=0, failed=0;
+  const BATCH=4;                         // 降到 4 路，配合動態間隔避開幣安限流
   for(let b=0;b<starts.length;b+=BATCH){
-    const batch=starts.slice(b,b+BATCH);
-    const results=await Promise.all(batch.map(st=>
-      api(`/api/v3/klines?symbol=${sym}&interval=1m&startTime=${st}&endTime=${st+CHUNK-1}&limit=1000`)));
-    for(const raw of results){
-      if(!raw) continue;
-      for(const k of raw){
-        if(k[0]>lastT){ T.push(k[0]); C.push(+k[4]); lastT=k[0]; }
-      }
-    }
-    done+=batch.length;
+    const idxs=[];
+    for(let k=b;k<Math.min(b+BATCH,starts.length);k++) idxs.push(k);
+    await Promise.all(idxs.map(async k=>{
+      const st=starts[k];
+      try{
+        parts[k]=await api(`/api/v3/klines?symbol=${sym}&interval=1m&startTime=${st}&endTime=${st+CHUNK-1}&limit=1000`);
+      }catch(e){ parts[k]=[]; failed++; }   // 真的拿不到才放棄，並計數
+    }));
+    done+=idxs.length;
     $("progFill").style.width=Math.min(100,done/starts.length*100).toFixed(1)+"%";
-    $("status").textContent=`下載中… ${done}/${starts.length} 段（${T.length.toLocaleString()} 根）`;
-    await new Promise(r=>setTimeout(r,120));
+    if(!/限流/.test($("status").textContent))
+      $("status").textContent=`下載中… ${done}/${starts.length} 段${failed?`（失敗 ${failed}）`:""}`;
+    await new Promise(r=>setTimeout(r,throttleMs));
   }
+  const T=[],C=[]; let lastT=-1;
+  for(const raw of parts){ if(!raw) continue;
+    for(const k of raw){ if(k[0]>lastT){ T.push(k[0]); C.push(+k[4]); lastT=k[0]; } } }
+  if(failed>starts.length*0.02) throw new Error(`有 ${failed} 段抓不到（資料會有破洞），請稍後重試`);
   const d={t:T,c:C};
   cache[key]=d;
+  const ok=await idbPut(key,{t:new Float64Array(T), c:new Float64Array(C), ts:Date.now()});
+  $("status").textContent=`下載完成 ${T.length.toLocaleString()} 根${ok?"，已存入本機快取":""}`;
   return d;
 }
 
@@ -311,6 +379,43 @@ function render(trades, sym, months, H, filteredOut=0){
   ctx.strokeStyle="#2A3140"; ctx.beginPath(); ctx.moveTo(0,Y(0)); ctx.lineTo(W,Y(0)); ctx.stroke();
   ctx.strokeStyle=pnl>=0?"#0ECB81":"#F6465D"; ctx.lineWidth=1.5; ctx.beginPath();
   eq.forEach((v,i)=>{ i?ctx.lineTo(X(i),Y(v)):ctx.moveTo(X(i),Y(v)); }); ctx.stroke();
+
+  // 前半 / 後半 穩健性檢查（同一組參數，自動切兩半）
+  (function(){
+    if(dec.length<40){ $("halves").innerHTML=`<div class="hint">訊號太少，無法做前後半對照。</div>`; return; }
+    const t0=dec[0].t, t1=dec[dec.length-1].t, mid=(t0+t1)/2;
+    const seg=(arr,label)=>{
+      if(!arr.length) return {label,n:0};
+      const w=arr.filter(x=>x.outcome==="win").length, r=w/arr.length;
+      const ev=r*PAYOUT-(1-r);
+      const mu=arr.length*BREAKEVEN, sdv=Math.sqrt(arr.length*BREAKEVEN*(1-BREAKEVEN));
+      return {label, n:arr.length, r, ev, pnl:w*STAKE*PAYOUT-(arr.length-w)*STAKE,
+              p:1-normCdf((w-0.5-mu)/sdv),
+              span:`${new Date(arr[0].t).toISOString().slice(0,7)} ~ ${new Date(arr[arr.length-1].t).toISOString().slice(0,7)}`};
+    };
+    const A=seg(dec.filter(x=>x.t<=mid),"前半段"), B=seg(dec.filter(x=>x.t>mid),"後半段");
+    const row=s=>s.n? `<tr>
+        <td style="padding:5px 10px 5px 0"><b>${s.label}</b><div class="hint">${s.span}</div></td>
+        <td class="mono" style="padding:5px 10px;color:${s.r>BREAKEVEN?"var(--up)":"var(--down)"}">${(s.r*100).toFixed(1)}%</td>
+        <td class="mono" style="padding:5px 10px;color:${s.ev>=0?"var(--up)":"var(--down)"}">${s.ev>=0?"+":""}${s.ev.toFixed(3)}U</td>
+        <td class="mono" style="padding:5px 10px;color:${s.pnl>=0?"var(--up)":"var(--down)"}">${s.pnl>=0?"+":""}${s.pnl.toFixed(0)}U</td>
+        <td class="mono" style="padding:5px 10px">${s.n}</td>
+        <td class="mono" style="padding:5px 0">${s.p<0.001?"<0.001":s.p.toFixed(3)}</td></tr>` : "";
+    const gap=(A.n&&B.n)? Math.abs(A.r-B.r)*100 : null;
+    let note="";
+    if(gap!==null){
+      const bothOk = A.r>BREAKEVEN && B.r>BREAKEVEN;
+      note = bothOk && gap<3
+        ? `<div style="color:var(--up);margin-top:6px">✓ 兩半段都高於兩平線、差距 ${gap.toFixed(1)} 個百分點 — 穩健，不像是擬合出來的。</div>`
+        : bothOk
+        ? `<div style="color:var(--acc);margin-top:6px">兩半段都過線，但差距 ${gap.toFixed(1)} 個百分點偏大，優勢可能隨市場結構變動。</div>`
+        : `<div style="color:var(--down);margin-top:6px">✗ 有一半沒過兩平線（差距 ${gap.toFixed(1)} 個百分點）— 這組參數的優勢不穩定，不要直接拿去實戰。</div>`;
+    }
+    $("halves").innerHTML=`<table style="font-size:12.5px;border-collapse:collapse">
+      <tr style="color:var(--dim);font-size:11px"><td></td><td style="padding:0 10px">勝率</td>
+      <td style="padding:0 10px">每1U</td><td style="padding:0 10px">損益</td>
+      <td style="padding:0 10px">筆數</td><td>p值</td></tr>${row(A)}${row(B)}</table>${note}`;
+  })();
 
   // 分月
   const bym=new Map();
