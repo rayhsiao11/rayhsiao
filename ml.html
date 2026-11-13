@@ -3,58 +3,59 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>規則 × 機器學習 — 條件式預測</title>
+<title>規則 × 機器學習</title>
 <style>
   :root { --bg:#0B0E14; --panel:#12161F; --border:#1E2530; --text:#E6EAF2;
     --dim:#8B93A7; --faint:#5A6172; --up:#0ECB81; --down:#F6465D; --acc:#F0B90B; }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--text);
     font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',system-ui,sans-serif; }
-  .wrap { max-width:860px; margin:0 auto; padding:16px 12px; }
-  .card { background:var(--panel); border:1px solid var(--border); border-radius:12px;
-    padding:14px; margin-top:12px; }
+  .wrap { max-width:900px; margin:0 auto; padding:16px 12px; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; margin-top:12px; }
   .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   label { font-size:12px; color:var(--dim); }
   select, input { padding:8px 9px; border-radius:7px; border:1px solid var(--border);
     background:var(--bg); color:var(--text); font-size:13px; font-family:inherit; }
   input { width:60px; text-align:center; }
   button { padding:11px 18px; border-radius:8px; border:1px solid var(--acc);
-    background:var(--acc); color:#0B0E14; font-size:14px; font-weight:700;
-    cursor:pointer; font-family:inherit; }
+    background:var(--acc); color:#0B0E14; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
   button:disabled { opacity:.4; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline:2px solid var(--acc); outline-offset:2px; }
   .mono { font-family:ui-monospace,Menlo,Consolas,monospace; }
   .hint { font-size:11px; color:var(--faint); line-height:1.6; }
-  #prog { height:8px; background:var(--bg); border-radius:4px; overflow:hidden;
-    border:1px solid var(--border); margin-top:8px; }
+  #prog { height:8px; background:var(--bg); border-radius:4px; overflow:hidden; border:1px solid var(--border); margin-top:8px; }
   #progFill { height:100%; width:0%; background:var(--acc); transition:width .2s; }
-  table { border-collapse:collapse; font-size:12.5px; width:100%; }
-  th { color:var(--dim); font-size:11px; font-weight:600; text-align:right;
-    padding:4px 8px; border-bottom:1px solid var(--border); }
+  .scroll { overflow-x:auto; }
+  table { border-collapse:collapse; font-size:12.5px; }
+  th { color:var(--dim); font-size:11px; font-weight:600; text-align:right; padding:4px 9px;
+    border-bottom:1px solid var(--border); white-space:nowrap; }
+  td { padding:6px 9px; text-align:right; white-space:nowrap; }
   th:first-child, td:first-child { text-align:left; }
-  td { padding:6px 8px; text-align:right; }
-  tr.hl td { background:#F0B90B10; }
-  .sec { font-size:12.5px; color:var(--dim); margin-top:16px; margin-bottom:6px; }
-  .bar { height:9px; border-radius:3px; background:var(--acc); display:inline-block;
-    vertical-align:middle; }
-  .verdict { margin-top:10px; padding:10px 12px; border-radius:8px; font-size:13px;
+  tr.hl td { background:#F0B90B12; }
+  .sec { font-size:13px; color:var(--text); font-weight:600; margin-top:20px; margin-bottom:4px; }
+  .sub { font-size:11.5px; color:var(--dim); margin-bottom:6px; line-height:1.6; }
+  .bar { height:9px; border-radius:3px; background:var(--acc); display:inline-block; vertical-align:middle; }
+  .bar.h4 { background:#60A5FA; }
+  .verdict { margin-top:10px; padding:10px 12px; border-radius:8px; font-size:13px; line-height:1.7;
     border:1px solid var(--acc); color:var(--acc); background:#F0B90B12; }
+  .tag4 { color:#60A5FA; font-weight:700; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div style="font-size:19px;font-weight:700;letter-spacing:1px">規則 × 機器學習
-    <span class="hint">條件式預測：只在規則觸發的時點上訓練模型</span></div>
+    <span class="hint">完整 K 線版：特徵算法同 make_btc10m_full.py</span></div>
 
   <div class="card">
     <div class="row">
       <label>幣種 <select id="sym"><option>BTCUSDT</option><option>ETHUSDT</option></select></label>
       <label>期間 <select id="months"><option value="24">近 2 年</option>
-        <option value="60" selected>近 5 年</option><option value="120">近 10 年</option></select></label>
+        <option value="60">近 5 年</option><option value="120" selected>近 10 年</option></select></label>
       <label>押 <select id="hz"><option value="10" selected>10 分</option>
         <option value="30">30 分</option><option value="60">60 分</option></select></label>
     </div>
     <div class="row" style="margin-top:8px">
-      <span class="hint">規則（產生候選事件）</span>
+      <span class="hint">規則</span>
       <label>1H MA <input id="h1ma" type="number" value="3" min="2" max="200"></label>
       <label>BOLL <input id="bolln" type="number" value="99" min="5" max="300"></label>
       <label>×σ <input id="bollk" type="number" value="3" min="0.5" max="5" step="0.1"></label>
@@ -63,14 +64,14 @@
     <div class="row" style="margin-top:8px">
       <span class="hint">驗證</span>
       <label>折數 <input id="folds" type="number" value="5" min="3" max="10"></label>
-      <label>gap <input id="gapD" type="number" value="1" min="0" max="30" step="1"> 天</label>
+      <label>gap <input id="gapD" type="number" value="1" min="0" max="30"> 天</label>
       <label>樹深 <input id="depth" type="number" value="4" min="2" max="12"></label>
       <label>葉最小樣本 <input id="leaf" type="number" value="40" min="5" max="500"></label>
       <label>森林樹數 <input id="ntree" type="number" value="60" min="10" max="300"></label>
     </div>
     <div class="row" style="margin-top:12px">
       <button id="runBtn">開始實驗</button>
-      <span class="hint" id="status">會先用本機快取；沒有才下載（跟回測器共用，不會重抓）。</span>
+      <span class="hint" id="status">第一次要下載完整 K 線（10 年約 10–15 分鐘，請用電腦、別讓它睡眠），之後存在本機只補新的。</span>
     </div>
     <div id="prog"><div id="progFill"></div></div>
   </div>
@@ -78,32 +79,32 @@
   <div id="out"></div>
 
   <div class="card hint">
-    做法：規則先圈出「極端急殺」的候選事件，只在這些時點上算特徵、訓練模型，用 TimeSeriesSplit
-    K 折 ＋ gap（永遠用過去訓練、預測未來，訓練與測試之間留空白）驗證。此處基準線不是 50%，
-    而是「規則本身無腦押漲」的勝率 — 模型要贏的是它。所有特徵只用進場當下以前的資料計算。
-    僅供研究驗證，非投資建議。
+    做法：規則先圈出急殺事件，只在這些時點算特徵、訓練模型。用 TimeSeriesSplit K 折＋gap 驗證（永遠用過去訓練、預測未來）。
+    基準線是「規則本身全押漲」的勝率，模型要贏的是它。特徵只用進場當下已收完的 K 線計算。
+    與專題的差異：KD、ADX、CCI、恐懼貪婪未納入（前三者需要整段遞迴計算，恐懼貪婪需另外下載）。僅供研究，非投資建議。
   </div>
 </div>
 
 <script>
 "use strict";
 const HOSTS=["https://data-api.binance.vision","https://api.binance.com"];
-const PAYOUT=0.8, BREAKEVEN=1/1.8, STAKE=20;
+const PAYOUT=0.8, BREAKEVEN=1/1.8;
 const $=id=>document.getElementById(id);
-const DB_NAME="btc-backtest-cache", STORE="klines";
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const pct=(x,d=1)=>isNaN(x)?"—":(x*100).toFixed(d)+"%";
 const mem={};
+let rateMsgUntil=0;
+function setStatus(s){ $("status").textContent=s; }
 
-// ─── IndexedDB（與回測器共用）─────────────────────────
-function idb(){ return new Promise((res,rej)=>{
-  const r=indexedDB.open(DB_NAME,1);
+// ─── IndexedDB（獨立的完整 K 線快取）──────────────────
+const DB_NAME="btc-backtest-cache", STORE="klines";
+function idb(){ return new Promise((res,rej)=>{ const r=indexedDB.open(DB_NAME,1);
   r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains(STORE)) r.result.createObjectStore(STORE); };
   r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
-async function idbGet(k){ try{ const db=await idb();
-  return await new Promise((res,rej)=>{ const q=db.transaction(STORE,"readonly").objectStore(STORE).get(k);
-    q.onsuccess=()=>res(q.result||null); q.onerror=()=>rej(q.error); }); }catch(e){ return null; } }
-async function idbPut(k,v){ try{ const db=await idb();
-  await new Promise((res,rej)=>{ const q=db.transaction(STORE,"readwrite").objectStore(STORE).put(v,k);
-    q.onsuccess=()=>res(); q.onerror=()=>rej(q.error); }); return true; }catch(e){ return false; } }
+async function idbGet(k){ try{ const db=await idb(); return await new Promise((res,rej)=>{
+  const q=db.transaction(STORE,"readonly").objectStore(STORE).get(k); q.onsuccess=()=>res(q.result||null); q.onerror=()=>rej(q.error); }); }catch(e){ return null; } }
+async function idbPut(k,v){ try{ const db=await idb(); await new Promise((res,rej)=>{
+  const q=db.transaction(STORE,"readwrite").objectStore(STORE).put(v,k); q.onsuccess=()=>res(); q.onerror=()=>rej(q.error); }); return true; }catch(e){ return false; } }
 
 let throttleMs=220;
 async function apiOnce(host,path){
@@ -118,132 +119,188 @@ async function api(path,tries=6){
   for(let a=0;a<tries;a++){
     for(const h of HOSTS){
       try{ return await apiOnce(h,path); }
-      catch(e){ last=e; if(e.wait){ $("status").textContent=`幣安限流，暫停 ${Math.round(e.wait/1000)} 秒…`;
-        await new Promise(r=>setTimeout(r,e.wait)); } }
+      catch(e){ last=e; if(e.wait){ rateMsgUntil=Date.now()+e.wait+500;
+        setStatus(`幣安限流，暫停 ${Math.round(e.wait/1000)} 秒後自動續傳…`); await sleep(e.wait); } }
     }
-    await new Promise(r=>setTimeout(r,400*Math.pow(2,a)));
+    await sleep(400*Math.pow(2,a));
   }
   throw last||new Error("fetch failed");
 }
-async function loadData(sym,months){
-  const key=sym+"_"+months;
-  if(mem[key]) return mem[key];
-  const st=await idbGet(key);
-  if(st && st.t && st.t.length>5000){
-    const d={t:Array.from(st.t), c:Array.from(st.c)}; mem[key]=d;
-    $("status").textContent=`本機快取 ${d.t.length.toLocaleString()} 根，免下載`;
-    $("progFill").style.width="100%"; return d;
-  }
-  const end=Date.now()-2*86400e3, start=end-months*30*86400e3, CHUNK=1000*60000;
-  const starts=[]; for(let c=start;c<end;c+=CHUNK) starts.push(Math.floor(c));
+async function fetchRange(sym,from,to){
+  const CHUNK=1000*60000, starts=[];
+  for(let c=from;c<to;c+=CHUNK) starts.push(Math.floor(c));
   const parts=new Array(starts.length).fill(null); let done=0,failed=0;
   for(let b=0;b<starts.length;b+=4){
     const idxs=[]; for(let k=b;k<Math.min(b+4,starts.length);k++) idxs.push(k);
     await Promise.all(idxs.map(async k=>{
-      try{ parts[k]=await api(`/api/v3/klines?symbol=${sym}&interval=1m&startTime=${starts[k]}&endTime=${starts[k]+CHUNK-1}&limit=1000`); }
+      const st=starts[k], en=Math.min(st+CHUNK,to)-1;
+      try{ parts[k]=await api(`/api/v3/klines?symbol=${sym}&interval=1m&startTime=${st}&endTime=${en}&limit=1000`); }
       catch(e){ parts[k]=[]; failed++; } }));
     done+=idxs.length;
     $("progFill").style.width=(done/starts.length*100).toFixed(1)+"%";
-    if(!/限流/.test($("status").textContent))
-      $("status").textContent=`下載中… ${done}/${starts.length} 段${failed?`（失敗 ${failed}）`:""}`;
-    await new Promise(r=>setTimeout(r,throttleMs));
+    if(Date.now()>rateMsgUntil) setStatus(`下載完整 K 線… ${done}/${starts.length} 段${failed?`（失敗 ${failed}）`:""}`);
+    await sleep(throttleMs);
   }
-  const T=[],C=[]; let lt=-1;
-  for(const raw of parts){ if(!raw) continue; for(const k of raw){ if(k[0]>lt){ T.push(k[0]); C.push(+k[4]); lt=k[0]; } } }
-  if(failed>starts.length*0.02) throw new Error(`有 ${failed} 段抓不到，請稍後重試`);
-  const d={t:T,c:C}; mem[key]=d;
-  await idbPut(key,{t:new Float64Array(T), c:new Float64Array(C), ts:Date.now()});
+  let n=0; for(const p of parts) if(p) n+=p.length;
+  const T=new Float64Array(n), O=new Float32Array(n), H=new Float32Array(n), L=new Float32Array(n), C=new Float64Array(n), V=new Float32Array(n);
+  let m=0, lt=-1;
+  for(const raw of parts){ if(!raw) continue;
+    for(const k of raw){ if(k[0]>lt && k[0]<to){ T[m]=k[0]; O[m]=+k[1]; H[m]=+k[2]; L[m]=+k[3]; C[m]=+k[4]; V[m]=+k[5]; lt=k[0]; m++; } } }
+  return {d:{t:T.slice(0,m),o:O.slice(0,m),h:H.slice(0,m),l:L.slice(0,m),c:C.slice(0,m),v:V.slice(0,m)}, failed, total:starts.length};
+}
+function concatD(a,b,k){
+  const out={};
+  for(const key of ["t","o","h","l","c","v"]){
+    const A=a[key].subarray(k), B=b[key], R=new A.constructor(A.length+B.length);
+    R.set(A); R.set(B,A.length); out[key]=R;
+  }
+  return out;
+}
+async function loadData(sym,months){
+  const key=sym+"_"+months+"_ohlcv";
+  const end=Math.floor(Date.now()/60000)*60000-120000, start=end-months*30*86400e3;
+  let d=mem[key]||await idbGet(key);
+  if(d && d.t && d.t.length>5000){
+    const lastT=d.t[d.t.length-1];
+    if(end-lastT>3*3600e3){
+      setStatus("補抓最新資料…");
+      const r=await fetchRange(sym,lastT+60000,end);
+      if(r.failed>r.total*0.02) throw new Error("補抓失敗，請稍後重試");
+      let k=0; while(k<d.t.length && d.t[k]<start) k++;
+      d=concatD(d,r.d,k);
+      await idbPut(key,d);
+    }
+    mem[key]=d; $("progFill").style.width="100%";
+    setStatus(`本機快取 ${d.t.length.toLocaleString()} 根完整 K 線`);
+    return d;
+  }
+  const r=await fetchRange(sym,start,end);
+  if(r.failed>r.total*0.02) throw new Error(`有 ${r.failed} 段抓不到，請稍後重試`);
+  d=r.d; mem[key]=d;
+  const ok=await idbPut(key,d);
+  setStatus(`下載完成 ${d.t.length.toLocaleString()} 根${ok?"，已存本機":""}`);
   return d;
 }
 
-// ─── 指標 ───────────────────────────────────────────────
-function sma(a,n){ const o=new Array(a.length).fill(null); let s=0;
-  for(let i=0;i<a.length;i++){ s+=a[i]; if(i>=n) s-=a[i-n]; if(i>=n-1) o[i]=s/n; } return o; }
-function rollStd(a,n){ const o=new Array(a.length).fill(null); let s=0,s2=0;
-  for(let i=0;i<a.length;i++){ s+=a[i]; s2+=a[i]*a[i]; if(i>=n){ s-=a[i-n]; s2-=a[i-n]*a[i-n]; }
-    if(i>=n-1){ const m=s/n; o[i]=Math.sqrt(Math.max(0,s2/n-m*m)); } } return o; }
-function ema(a,n){ const k=2/(n+1), o=new Array(a.length).fill(null); let p=null;
-  for(let i=0;i<a.length;i++){ p=p===null?a[i]:a[i]*k+p*(1-k); if(i>=n-1) o[i]=p; } return o; }
-function rsiArr(v,n){ const o=new Array(v.length).fill(null); let ag=0,al=0;
-  for(let i=1;i<v.length;i++){ const d=v[i]-v[i-1], g=Math.max(d,0), l=Math.max(-d,0);
-    if(i<=n){ ag+=g/n; al+=l/n; if(i===n) o[i]=100-100/(1+ag/(al||1e-9)); }
-    else { ag=(ag*(n-1)+g)/n; al=(al*(n-1)+l)/n; o[i]=100-100/(1+ag/(al||1e-9)); } }
-  return o; }
+// ─── 整段序列指標 ───────────────────────────────────────
+function emaFull(a,n){ const k=2/(n+1), o=new Float64Array(a.length); let p=a[0];
+  for(let i=0;i<a.length;i++){ p = i? a[i]*k+p*(1-k) : a[0]; o[i]=p; } return o; }
+function smaFull(a,n){ const N=a.length, o=new Float64Array(N).fill(NaN); let s=0;
+  for(let i=0;i<N;i++){ s+=a[i]; if(i>=n) s-=a[i-n]; if(i>=n-1){ if((i&4095)===0){ s=0; for(let k=i-n+1;k<=i;k++) s+=a[k]; } o[i]=s/n; } } return o; }
+function stdFull(a,n){ const N=a.length, o=new Float64Array(N).fill(NaN); let s=0,s2=0;
+  for(let i=0;i<N;i++){ const v=a[i]; s+=v; s2+=v*v; if(i>=n){ const u=a[i-n]; s-=u; s2-=u*u; }
+    if(i>=n-1){ if((i&4095)===0){ s=0; s2=0; for(let k=i-n+1;k<=i;k++){ s+=a[k]; s2+=a[k]*a[k]; } }
+      const m=s/n; o[i]=Math.sqrt(Math.max(0,s2/n-m*m)); } } return o; }
 function trendMap(T,C,bucketMin,maN){
   const ms=bucketMin*60000, bT=[], bC=[];
   for(let i=0;i<T.length;i++){ const b=Math.floor(T[i]/ms)*ms;
     if(!bT.length||bT[bT.length-1]!==b){ bT.push(b); bC.push(C[i]); } else bC[bC.length-1]=C[i]; }
-  const bMA=sma(bC,maN), keys=[], vals=[];
-  for(let j=0;j<bT.length;j++){ if(bMA[j]===null) continue;
-    keys.push(bT[j]+ms); vals.push({d:bC[j]>bMA[j]?1:-1, gap:bC[j]/bMA[j]-1}); }
-  const out=new Array(T.length).fill(null); let ki=0,cur=null;
-  for(let i=0;i<T.length;i++){ while(ki<keys.length&&keys[ki]<=T[i]){ cur=vals[ki]; ki++; } out[i]=cur; }
+  const bMA=smaFull(bC,maN), out=new Int8Array(T.length); let ki=0, cur=0;
+  for(let i=0;i<T.length;i++){ while(ki<bT.length && bT[ki]+ms<=T[i]){ if(bMA[ki]===bMA[ki]) cur=bC[ki]>bMA[ki]?1:-1; ki++; } out[i]=cur; }
   return out;
 }
 function ret30Map(T,C){
   const ms=86400e3, dT=[], dC=[];
   for(let i=0;i<T.length;i++){ const b=Math.floor(T[i]/ms)*ms;
     if(!dT.length||dT[dT.length-1]!==b){ dT.push(b); dC.push(C[i]); } else dC[dC.length-1]=C[i]; }
-  const keys=[],vals=[];
-  for(let j=30;j<dT.length;j++){ keys.push(dT[j]+ms); vals.push(dC[j]/dC[j-30]-1); }
-  const out=new Array(T.length).fill(null); let ki=0,cur=null;
-  for(let i=0;i<T.length;i++){ while(ki<keys.length&&keys[ki]<=T[i]){ cur=vals[ki]; ki++; } out[i]=cur; }
+  const out=new Float64Array(T.length).fill(NaN); let j=30, cur=NaN;
+  for(let i=0;i<T.length;i++){ while(j<dT.length && dT[j]+ms<=T[i]){ cur=dC[j]/dC[j-30]-1; j++; } out[i]=cur; }
   return out;
 }
 function normCdf(z){ const t=1/(1+0.2316419*Math.abs(z)), d=0.3989423*Math.exp(-z*z/2);
   const p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274)))); return z>0?1-p:p; }
 
-// ─── 決策樹（CART / Gini）────────────────────────────────
+// ─── 單點特徵（照 make_btc10m_full.py 的定義）───────────
+const FEAT=[
+  ["dist_sma20","離 SMA20"],["dist_sma60","離 SMA60"],
+  ["dist_ema10","離 EMA10"],["dist_ema60","離 EMA60"],["dist_ema240","離 EMA240（4H）"],["dist_ema1440","離 EMA1440（1D）"],
+  ["rsi14","RSI14"],["rsi60","RSI60"],["macd_hist","MACD 柱"],
+  ["bb_pos","布林位置(20,2)"],["bb_width","布林寬度(20,2)"],["atr14","ATR14"],
+  ["roc_1m","1分報酬"],["roc_5m","5分報酬"],["roc_15m","15分報酬"],["roc_60m","60分報酬"],
+  ["roc_240m","240分報酬（4H）"],["roc_1440m","1440分報酬（1D）"],
+  ["mom10","Momentum10"],["willr14","Williams %R"],
+  ["don_pos60","Donchian 位置60"],["don_width60","Donchian 寬60"],
+  ["don_pos240","Donchian 位置240（4H）"],["don_width240","Donchian 寬240（4H）"],
+  ["obv_chg60","OBV 變化60"],["dist_vwap60","離 VWAP60"],["dist_vwap1440","離 VWAP1440（1D）"],["mfi14","MFI14"],
+  ["hv_10m","波動率10"],["hv_60m","波動率60"],["hv_ratio","波動率比"],
+  ["vol_x60","量比60"],["vol_10_240","量比10/240（4H）"],
+  ["body","K 實體"],["upper_wick","上影線"],["lower_wick","下影線"],
+  ["sig_sigma","超出下軌σ倍"],["out_run","連續外軌根數"],["ret30d","30日報酬"],
+  ["hour_sin","小時sin"],["hour_cos","小時cos"],["wd_sin","星期sin"],["wd_cos","星期cos"],
+];
+const is4H=k=>/240|1440/.test(k);
+
+function featuresAt(D,F,e){
+  const {o:O,h:H,l:L,c:C,v:V}=D, c=C[e];
+  const mean=(a,from,to)=>{ let s=0; for(let k=from;k<=to;k++) s+=a[k]; return s/(to-from+1); };
+  const stdS=(arr)=>{ const n=arr.length, m=arr.reduce((a,b)=>a+b,0)/n; let s=0; for(const x of arr) s+=(x-m)**2; return Math.sqrt(s/(n-1)); };
+  const rsi=n=>{ let up=0,dn=0; for(let k=e-n+1;k<=e;k++){ const d=C[k]-C[k-1]; if(d>0) up+=d; else dn-=d; } return dn===0?100:100-100/(1+up/dn); };
+  const hl=(n)=>{ let hi=-Infinity,lo=Infinity; for(let k=e-n+1;k<=e;k++){ if(H[k]>hi) hi=H[k]; if(L[k]<lo) lo=L[k]; } return [hi,lo]; };
+  const w20=[]; for(let k=e-19;k<=e;k++) w20.push(C[k]);
+  const m20=w20.reduce((a,b)=>a+b,0)/20, s20=stdS(w20);
+  let trs=0; for(let k=e-13;k<=e;k++) trs+=Math.max(H[k]-L[k],Math.abs(H[k]-C[k-1]),Math.abs(L[k]-C[k-1]));
+  const atr=trs/14;
+  const [h14,l14]=hl(14), [h60,l60]=hl(60), [h240,l240]=hl(240);
+  let obv=0, vs60=0; for(let k=e-59;k<=e;k++){ const d=C[k]-C[k-1]; obv+=(d>0?1:d<0?-1:0)*V[k]; vs60+=V[k]; }
+  const vwap=n=>{ let pv=0,vv=0; for(let k=e-n+1;k<=e;k++){ const tp=(H[k]+L[k]+C[k])/3; pv+=tp*V[k]; vv+=V[k]; } return vv>0?pv/vv:NaN; };
+  let pmf=0,nmf=0; for(let k=e-13;k<=e;k++){ const tp=(H[k]+L[k]+C[k])/3, tp0=(H[k-1]+L[k-1]+C[k-1])/3, mf=tp*V[k]; if(tp>tp0) pmf+=mf; else if(tp<tp0) nmf+=mf; }
+  const r1=k=>C[k]/C[k-1]-1;
+  const rr10=[], rr60=[]; for(let k=e-59;k<=e;k++){ rr60.push(r1(k)); if(k>e-10) rr10.push(r1(k)); }
+  const hv10=stdS(rr10), hv60=stdS(rr60);
+  const vm60=mean(V,e-59,e), vm10=mean(V,e-9,e), vm240=mean(V,e-239,e);
+  const o=O[e], d=new Date(D.t[e]), hr=d.getUTCHours(), wd=(d.getUTCDay()+6)%7;
+  return [
+    c/mean(C,e-19,e)-1, c/mean(C,e-59,e)-1,
+    c/F.e10[e]-1, c/F.e60[e]-1, c/F.e240[e]-1, c/F.e1440[e]-1,
+    rsi(14), rsi(60), (F.macd[e]-F.sig[e])/c,
+    (c-(m20-2*s20))/(4*s20), 4*s20/m20, atr/c,
+    c/C[e-1]-1, c/C[e-5]-1, c/C[e-15]-1, c/C[e-60]-1, c/C[e-240]-1, c/C[e-1440]-1,
+    (c-C[e-10])/atr, (h14-c)/(h14-l14)*-100,
+    (c-l60)/(h60-l60), (h60-l60)/c, (c-l240)/(h240-l240), (h240-l240)/c,
+    vs60>0?obv/vs60:0, c/vwap(60)-1, c/vwap(1440)-1, nmf===0?100:100-100/(1+pmf/nmf),
+    hv10, hv60, hv60>0?hv10/hv60:1,
+    vm60>0?V[e]/vm60:1, vm240>0?vm10/vm240:1,
+    (c-o)/o, (H[e]-Math.max(o,c))/o, (Math.min(o,c)-L[e])/o,
+    (F.mid[e]-c)/(F.sd[e]||1e-9), F.outRun[e], F.r30[e],
+    Math.sin(2*Math.PI*hr/24), Math.cos(2*Math.PI*hr/24), Math.sin(2*Math.PI*wd/7), Math.cos(2*Math.PI*wd/7),
+  ].map(x=>isFinite(x)?x:0);
+}
+
+// ─── 決策樹 / 隨機森林 / 羅吉斯 ─────────────────────────
 function giniOf(p){ return 1-p*p-(1-p)*(1-p); }
 function buildTree(X,y,idx,feats,depth,maxDepth,minLeaf,imp){
-  const n=idx.length;
-  let pos=0; for(const i of idx) pos+=y[i];
-  const p=pos/n;
-  if(depth>=maxDepth || n<2*minLeaf || p===0 || p===1) return {leaf:true, p};
-  const parentG=giniOf(p);
-  let best=null;
+  const n=idx.length; let pos=0; for(const i of idx) pos+=y[i]; const p=pos/n;
+  if(depth>=maxDepth || n<2*minLeaf || p===0 || p===1) return {leaf:true,p,n};
+  const parentG=giniOf(p); let best=null;
   for(const f of feats){
-    const vals=idx.map(i=>[X[i][f],y[i]]).sort((a,b)=>a[0]-b[0]);
-    let lp=0;
+    const vals=idx.map(i=>[X[i][f],y[i]]).sort((a,b)=>a[0]-b[0]); let lp=0;
     for(let k=0;k<n-1;k++){
-      lp+=vals[k][1];
-      const lc=k+1, rc=n-lc;
-      if(lc<minLeaf||rc<minLeaf) continue;
-      if(vals[k][0]===vals[k+1][0]) continue;
-      const g=(lc/n)*giniOf(lp/lc)+(rc/n)*giniOf((pos-lp)/rc);
-      const gain=parentG-g;
-      if(!best||gain>best.gain) best={gain, f, thr:(vals[k][0]+vals[k+1][0])/2};
+      lp+=vals[k][1]; const lc=k+1, rc=n-lc;
+      if(lc<minLeaf||rc<minLeaf||vals[k][0]===vals[k+1][0]) continue;
+      const gain=parentG-((lc/n)*giniOf(lp/lc)+(rc/n)*giniOf((pos-lp)/rc));
+      if(!best||gain>best.gain) best={gain,f,thr:(vals[k][0]+vals[k+1][0])/2};
     }
   }
-  if(!best||best.gain<=1e-9) return {leaf:true,p};
+  if(!best||best.gain<=1e-9) return {leaf:true,p,n};
   if(imp) imp[best.f]=(imp[best.f]||0)+best.gain*n;
-  const L=[],R=[];
-  for(const i of idx) (X[i][best.f]<=best.thr?L:R).push(i);
-  if(!L.length||!R.length) return {leaf:true,p};
-  return { leaf:false, f:best.f, thr:best.thr,
-    L:buildTree(X,y,L,feats,depth+1,maxDepth,minLeaf,imp),
-    R:buildTree(X,y,R,feats,depth+1,maxDepth,minLeaf,imp) };
+  const Lx=[],Rx=[]; for(const i of idx) (X[i][best.f]<=best.thr?Lx:Rx).push(i);
+  return {leaf:false,f:best.f,thr:best.thr,n,
+    L:buildTree(X,y,Lx,feats,depth+1,maxDepth,minLeaf,imp), R:buildTree(X,y,Rx,feats,depth+1,maxDepth,minLeaf,imp)};
 }
-function treePred(node,x){ while(!node.leaf) node = x[node.f]<=node.thr ? node.L : node.R; return node.p; }
-
-// ─── 隨機森林 ───────────────────────────────────────────
-function mulberry(a){ return function(){ a|=0; a=a+0x6D2B79F5|0;
-  let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t;
-  return ((t^t>>>14)>>>0)/4294967296; }; }
-function buildForest(X,y,idx,nFeat,nTree,maxDepth,minLeaf,imp,seed){
-  const rnd=mulberry(seed||42), F=X[0].length, m=Math.max(1,Math.round(Math.sqrt(F)));
-  const trees=[];
+function treePred(node,x){ while(!node.leaf) node=x[node.f]<=node.thr?node.L:node.R; return node.p; }
+function mulberry(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function buildForest(X,y,idx,nTree,maxDepth,minLeaf,imp,seed){
+  const rnd=mulberry(seed), F=X[0].length, m=Math.max(1,Math.round(Math.sqrt(F))), trees=[];
   for(let t=0;t<nTree;t++){
     const boot=[]; for(let i=0;i<idx.length;i++) boot.push(idx[(rnd()*idx.length)|0]);
-    const pool=[]; for(let f=0;f<F;f++) pool.push(f);
-    for(let i=pool.length-1;i>0;i--){ const j=(rnd()*(i+1))|0; [pool[i],pool[j]]=[pool[j],pool[i]]; }
+    const pool=[...Array(F).keys()];
+    for(let i=F-1;i>0;i--){ const j=(rnd()*(i+1))|0; [pool[i],pool[j]]=[pool[j],pool[i]]; }
     trees.push(buildTree(X,y,boot,pool.slice(0,m),0,maxDepth,minLeaf,imp));
   }
   return trees;
 }
 function forestPred(trees,x){ let s=0; for(const t of trees) s+=treePred(t,x); return s/trees.length; }
-
-// ─── 羅吉斯迴歸（標準化 + 梯度下降）──────────────────────
 function fitLogistic(X,y,idx,iters=300,lr=0.3){
   const F=X[0].length, mu=new Array(F).fill(0), sd=new Array(F).fill(0);
   for(const i of idx) for(let f=0;f<F;f++) mu[f]+=X[i][f];
@@ -253,254 +310,167 @@ function fitLogistic(X,y,idx,iters=300,lr=0.3){
   const w=new Array(F).fill(0); let b=0;
   for(let it=0;it<iters;it++){
     const gw=new Array(F).fill(0); let gb=0;
-    for(const i of idx){
-      let z=b; for(let f=0;f<F;f++) z+=w[f]*(X[i][f]-mu[f])/sd[f];
-      const pr=1/(1+Math.exp(-z)), e=pr-y[i];
-      for(let f=0;f<F;f++) gw[f]+=e*(X[i][f]-mu[f])/sd[f];
-      gb+=e;
-    }
-    for(let f=0;f<F;f++) w[f]-=lr*gw[f]/idx.length;
-    b-=lr*gb/idx.length;
+    for(const i of idx){ let z=b; for(let f=0;f<F;f++) z+=w[f]*(X[i][f]-mu[f])/sd[f];
+      const e=1/(1+Math.exp(-z))-y[i]; for(let f=0;f<F;f++) gw[f]+=e*(X[i][f]-mu[f])/sd[f]; gb+=e; }
+    for(let f=0;f<F;f++) w[f]-=lr*gw[f]/idx.length; b-=lr*gb/idx.length;
   }
   return {w,b,mu,sd};
 }
-function logiPred(m,x){ let z=m.b;
-  for(let f=0;f<x.length;f++) z+=m.w[f]*(x[f]-m.mu[f])/m.sd[f];
-  return 1/(1+Math.exp(-z)); }
-
+function logiPred(m,x){ let z=m.b; for(let f=0;f<x.length;f++) z+=m.w[f]*(x[f]-m.mu[f])/m.sd[f]; return 1/(1+Math.exp(-z)); }
 function auc(ys,ps){
-  const n=ys.length, ord=ys.map((_,i)=>i).sort((a,b)=>ps[a]-ps[b]);
-  let r=new Array(n), i=0;
-  while(i<n){ let j=i; while(j+1<n&&ps[ord[j+1]]===ps[ord[i]]) j++;
-    const avg=(i+j)/2+1; for(let k=i;k<=j;k++) r[ord[k]]=avg; i=j+1; }
-  let sp=0,np=0,nn=0;
-  for(let k=0;k<n;k++){ if(ys[k]===1){ sp+=r[k]; np++; } else nn++; }
-  if(!np||!nn) return 0.5;
-  return (sp-np*(np+1)/2)/(np*nn);
+  const n=ys.length, ord=ys.map((_,i)=>i).sort((a,b)=>ps[a]-ps[b]); const r=new Array(n); let i=0;
+  while(i<n){ let j=i; while(j+1<n&&ps[ord[j+1]]===ps[ord[i]]) j++; const avg=(i+j)/2+1; for(let k=i;k<=j;k++) r[ord[k]]=avg; i=j+1; }
+  let sp=0,np=0,nn=0; for(let k=0;k<n;k++){ if(ys[k]===1){ sp+=r[k]; np++; } else nn++; }
+  return (!np||!nn)?0.5:(sp-np*(np+1)/2)/(np*nn);
 }
 
 // ─── 主流程 ─────────────────────────────────────────────
-const FNAMES=["超出下軌σ倍","連續外軌根數","RSI14","近5分報酬","近15分報酬","近60分報酬",
-  "1m波動率60","布林帶寬","距1H均線%","30日報酬","RSI5","距EMA60%","小時sin","小時cos"];
-
 async function run(){
   $("runBtn").disabled=true; $("out").innerHTML="";
-  const sym=$("sym").value, months=+$("months").value, H=+$("hz").value;
-  const h1ma=+$("h1ma").value, bn=+$("bolln").value, bk=+$("bollk").value;
-  const th=(+$("filtTh").value||30)/100;
+  const sym=$("sym").value, months=+$("months").value, Hz=+$("hz").value;
+  const h1ma=+$("h1ma").value, bn=+$("bolln").value, bk=+$("bollk").value, th=(+$("filtTh").value||30)/100;
   const K=+$("folds").value, gapMs=(+$("gapD").value||0)*86400e3;
   const maxDepth=+$("depth").value, minLeaf=+$("leaf").value, nTree=+$("ntree").value;
   try{
-    const {t:T,c:C}=await loadData(sym,months);
-    $("status").textContent="計算特徵與訊號中…";
-    await new Promise(r=>setTimeout(r,20));
+    const D=await loadData(sym,months), T=D.t, C=D.c, N=C.length;
+    setStatus("計算指標中…"); await sleep(20);
+    const mid=smaFull(C,bn), sd=stdFull(C,bn);
+    const e12=emaFull(C,12), e26=emaFull(C,26), macd=new Float64Array(N);
+    for(let i=0;i<N;i++) macd[i]=e12[i]-e26[i];
+    const F={ mid, sd, t1h:trendMap(T,C,60,h1ma), r30:ret30Map(T,C),
+      e10:emaFull(C,10), e60:emaFull(C,60), e240:emaFull(C,240), e1440:emaFull(C,1440), macd, sig:emaFull(macd,9),
+      outRun:new Int32Array(N) };
+    for(let i=1;i<N;i++) if(mid[i]===mid[i] && C[i]<mid[i]-bk*sd[i]) F.outRun[i]=F.outRun[i-1]+1;
 
-    const mid=sma(C,bn), sd=rollStd(C,bn), t1h=trendMap(T,C,60,h1ma), r30=ret30Map(T,C);
-    const rsi14=rsiArr(C,14), rsi5=rsiArr(C,5), e60=ema(C,60);
-    const ret1=new Array(C.length).fill(0);
-    for(let i=1;i<C.length;i++) ret1[i]=C[i]/C[i-1]-1;
-    const vol60=rollStd(ret1,60);
-
-    // 連續在下軌外的根數
-    const outRun=new Array(C.length).fill(0);
-    for(let i=0;i<C.length;i++){
-      if(mid[i]===null){ outRun[i]=0; continue; }
-      outRun[i] = (C[i]<mid[i]-bk*sd[i]) ? (i>0?outRun[i-1]+1:1) : 0;
-    }
-
-    const X=[], Y=[], TS=[];
-    let busy=-1, blocked=0;
-    for(let i=1;i<C.length-H-2;i++){
+    setStatus("找出規則訊號、計算特徵…"); await sleep(20);
+    const X=[], Y=[], TS=[]; let busy=-1, blocked=0;
+    const WARM=1500;                               // 需要 1440 根暖機
+    for(let i=WARM;i<N-Hz-2;i++){
       const e=i+1;
-      if(mid[i]===null||mid[e]===null||t1h[e]===null||r30[e]===null) continue;
-      if(rsi14[e]===null||rsi5[e]===null||e60[e]===null||vol60[e]===null) continue;
-      if(T[e]<=busy) continue;
-      // 規則：連兩根跌破下軌 ＋ 1H 偏空
-      const dn = C[i]<mid[i]-bk*sd[i] && C[e]<mid[e]-bk*sd[e];
-      if(!dn || t1h[e].d!==-1) continue;
-      if(Math.abs(r30[e])>=th){ blocked++; continue; }
-      const targetT=T[e]+H*60000;
-      let j=e+H; while(j<T.length&&T[j]<targetT) j++;
-      if(j>=T.length||T[j]!==targetT) continue;
-      if(C[j]===C[e]) continue;                     // 持平剔除
-      const d=new Date(T[e]), hr=d.getUTCHours()+d.getUTCMinutes()/60;
-      X.push([
-        (mid[e]-C[e])/(sd[e]||1e-9),               // 超出下軌幾個 σ
-        outRun[e],                                  // 連續外軌根數
-        rsi14[e],
-        C[e]/C[Math.max(0,e-5)]-1,
-        C[e]/C[Math.max(0,e-15)]-1,
-        C[e]/C[Math.max(0,e-60)]-1,
-        vol60[e],
-        sd[e]/mid[e],                               // 布林帶寬（波動體質）
-        t1h[e].gap,                                 // 距 1H 均線 %
-        r30[e],                                     // 30 日報酬（市場狀態）
-        rsi5[e],
-        C[e]/e60[e]-1,
-        Math.sin(2*Math.PI*hr/24), Math.cos(2*Math.PI*hr/24),
-      ]);
-      Y.push(C[j]>C[e]?1:0);                        // 押漲是否成功
-      TS.push(T[e]);
-      busy=T[e]+H*60000;
+      if(mid[i]!==mid[i] || F.t1h[e]!==-1 || T[e]<=busy) continue;
+      if(!(C[i]<mid[i]-bk*sd[i] && C[e]<mid[e]-bk*sd[e])) continue;
+      if(!(F.r30[e]===F.r30[e]) || Math.abs(F.r30[e])>=th){ blocked++; continue; }
+      if(T[e]-T[e-1440]!==1440*60000) continue;    // 回看區間有缺 K 就跳過
+      const tgt=T[e]+Hz*60000; let j=e+Hz; while(j<N && T[j]<tgt) j++;
+      if(j>=N || T[j]!==tgt || C[j]===C[e]) continue;
+      X.push(featuresAt(D,F,e)); Y.push(C[j]>C[e]?1:0); TS.push(T[e]);
+      busy=T[e]+Hz*60000;
     }
+    const n=X.length;
+    if(n<300) throw new Error(`訊號只有 ${n} 筆，太少`);
 
-    if(X.length<300) throw new Error(`訊號只有 ${X.length} 筆，樣本太少。請放寬參數或拉長期間。`);
-    $("status").textContent=`訊號 ${X.length} 筆，開始 ${K} 折驗證…`;
-    await new Promise(r=>setTimeout(r,20));
-
-    // ─── TimeSeriesSplit K 折 ＋ gap ───
-    const n=X.length, chunk=Math.floor(n/(K+1));
-    const folds=[];
+    // TimeSeriesSplit + gap
+    const chunk=Math.floor(n/(K+1)), folds=[];
     for(let k=0;k<K;k++){
-      const trEnd=chunk*(k+1), teStart=trEnd, teEnd=(k===K-1)?n:chunk*(k+2);
-      const cut=TS[teStart]-gapMs;
+      const trEnd=chunk*(k+1), teEnd=(k===K-1)?n:chunk*(k+2), cut=TS[trEnd]-gapMs;
       const tr=[]; for(let i=0;i<trEnd;i++) if(TS[i]<cut) tr.push(i);
-      const te=[]; for(let i=teStart;i<teEnd;i++) te.push(i);
-      if(tr.length<100||te.length<20) continue;
-      folds.push({tr,te});
+      const te=[]; for(let i=trEnd;i<teEnd;i++) te.push(i);
+      if(tr.length>=100 && te.length>=20) folds.push({tr,te});
     }
-    if(!folds.length) throw new Error("折數或 gap 設定導致沒有有效折，請調小 gap 或折數。");
 
-    const models={ "規則基準（全押漲）":null, "DecisionTree":"dt", "RandomForest":"rf", "Logistic":"lg" };
-    const res={}; const impAgg={};
-    const foldBase=[];
-    for(const name in models) res[name]={acc:[], auc:[], kept:[], picked:[]};
-
-    for(let fi=0; fi<folds.length; fi++){
+    const res={"規則基準（全押漲）":[], DecisionTree:[], RandomForest:[], Logistic:[]};
+    const imp={}, stumps=[];
+    for(let fi=0;fi<folds.length;fi++){
       const {tr,te}=folds[fi];
-      $("status").textContent=`第 ${fi+1}/${folds.length} 折訓練中…`;
-      $("progFill").style.width=((fi+1)/folds.length*100).toFixed(0)+"%";
-      await new Promise(r=>setTimeout(r,10));
+      setStatus(`第 ${fi+1}/${folds.length} 折訓練中…`);
+      $("progFill").style.width=((fi+1)/folds.length*100).toFixed(0)+"%"; await sleep(10);
+      const ys=te.map(i=>Y[i]), base=ys.reduce((a,b)=>a+b,0)/ys.length;
+      res["規則基準（全押漲）"].push({picked:base,kept:1,auc:NaN});
 
-      const baseAcc=te.reduce((s,i)=>s+Y[i],0)/te.length;
-      foldBase.push(baseAcc);
-      res["規則基準（全押漲）"].acc.push(baseAcc);
-      res["規則基準（全押漲）"].auc.push(0.5);
-      res["規則基準（全押漲）"].kept.push(1);
-      res["規則基準（全押漲）"].picked.push(baseAcc);
+      // 單刀決策樹：最小葉＝訓練集 10%，避免切出極端小群
+      const all=[...Array(X[0].length).keys()];
+      const st=buildTree(X,Y,tr,all,0,1,Math.max(100,Math.floor(tr.length*0.1)),null);
+      if(!st.leaf){
+        const goodLeft = st.L.p>=st.R.p;
+        const inGood=i=> (X[i][st.f]<=st.thr)===goodLeft;
+        const g=te.filter(inGood), b=te.filter(i=>!inGood(i));
+        const wr=a=>a.length?a.reduce((s,i)=>s+Y[i],0)/a.length:NaN;
+        stumps.push({fold:fi+1,f:st.f,thr:st.thr,goodLeft,trGood:goodLeft?st.L.p:st.R.p,trBad:goodLeft?st.R.p:st.L.p,
+          teGood:wr(g),nGood:g.length,winGood:g.reduce((s,i)=>s+Y[i],0),teBad:wr(b),nBad:b.length,base,nAll:te.length});
+      } else stumps.push({fold:fi+1,f:-1,base,nAll:te.length});
 
-      const imp={};
-      const dt=buildTree(X,Y,tr,X[0].map((_,f)=>f),0,maxDepth,minLeaf,null);
-      const rf=buildForest(X,Y,tr,null,nTree,maxDepth,minLeaf,imp,1234+fi);
+      const dt=buildTree(X,Y,tr,all,0,maxDepth,minLeaf,null);
+      const rf=buildForest(X,Y,tr,nTree,maxDepth,minLeaf,imp,1234+fi);
       const lg=fitLogistic(X,Y,tr);
-      for(const f in imp) impAgg[f]=(impAgg[f]||0)+imp[f];
-
-      for(const [name,kind] of [["DecisionTree","dt"],["RandomForest","rf"],["Logistic","lg"]]){
-        const ps=te.map(i=> kind==="dt"?treePred(dt,X[i]) : kind==="rf"?forestPred(rf,X[i]) : logiPred(lg,X[i]));
-        const ys=te.map(i=>Y[i]);
-        // 預測準確率（模型判斷「這筆會贏嗎」）
-        let correct=0; for(let k=0;k<ys.length;k++) correct += ((ps[k]>=0.5?1:0)===ys[k])?1:0;
-        res[name].acc.push(correct/ys.length);
-        res[name].auc.push(auc(ys,ps));
-        // 交易意義：只在模型說會贏（p≥0.5）時下注，這些單的實際勝率
-        const sel=[]; for(let k=0;k<ys.length;k++) if(ps[k]>=0.5) sel.push(ys[k]);
-        res[name].kept.push(sel.length/ys.length);
-        res[name].picked.push(sel.length? sel.reduce((a,b)=>a+b,0)/sel.length : NaN);
+      for(const [name,pf] of [["DecisionTree",x=>treePred(dt,x)],["RandomForest",x=>forestPred(rf,x)],["Logistic",x=>logiPred(lg,x)]]){
+        const ps=te.map(i=>pf(X[i])), sel=[]; ps.forEach((p,k)=>{ if(p>=0.5) sel.push(ys[k]); });
+        res[name].push({picked:sel.length?sel.reduce((a,b)=>a+b,0)/sel.length:NaN, kept:sel.length/ys.length, auc:auc(ys,ps)});
       }
     }
-
-    // ─── 門檻掃描（用最後一折外推，所有折合併）───
-    const sweep=[];
-    {
-      const allP=[], allY=[];
-      for(const {tr,te} of folds){
-        const imp={};
-        const rf=buildForest(X,Y,tr,null,nTree,maxDepth,minLeaf,imp,999);
-        for(const i of te){ allP.push(forestPred(rf,X[i])); allY.push(Y[i]); }
-      }
-      for(const t of [0.50,0.55,0.60,0.65]){
-        const sel=[]; for(let k=0;k<allY.length;k++) if(allP[k]>=t) sel.push(allY[k]);
-        if(sel.length<30){ sweep.push({t, n:sel.length, wr:NaN, ev:NaN, pnl:NaN}); continue; }
-        const wr=sel.reduce((a,b)=>a+b,0)/sel.length;
-        sweep.push({t, n:sel.length, wr, ev:wr*PAYOUT-(1-wr),
-          pnl:sel.reduce((a,b)=>a+b,0)*STAKE*PAYOUT-(sel.length-sel.reduce((a,b)=>a+b,0))*STAKE});
-      }
-    }
-
-    render({res, folds:folds.length, n, blocked, sweep, impAgg, X, sym, months, H, foldBase});
-    $("status").textContent=`完成：${sym} 近 ${months} 個月，訊號 ${n} 筆`;
+    render({res,stumps,imp,n,blocked,folds:folds.length,spanDays:(TS[n-1]-TS[0])/86400e3});
+    setStatus(`完成：${sym} 近 ${months} 個月，訊號 ${n} 筆，特徵 ${X[0].length} 個`);
   }catch(e){
-    $("out").innerHTML=`<div class="card" style="color:var(--down)">錯誤：${e.message}</div>`;
-    $("status").textContent="失敗";
+    $("out").innerHTML=`<div class="card" style="color:var(--down)">錯誤：${e.message}</div>`; setStatus("失敗");
   }
   $("runBtn").disabled=false;
 }
 
-const mean=a=>a.filter(x=>!isNaN(x)).reduce((s,x)=>s+x,0)/a.filter(x=>!isNaN(x)).length;
-const std=a=>{ const v=a.filter(x=>!isNaN(x)); const m=mean(v);
-  return Math.sqrt(v.reduce((s,x)=>s+(x-m)**2,0)/v.length); };
+const avg=a=>{ const v=a.filter(x=>!isNaN(x)); return v.length?v.reduce((s,x)=>s+x,0)/v.length:NaN; };
+const sdv=a=>{ const v=a.filter(x=>!isNaN(x)), m=avg(v); return Math.sqrt(v.reduce((s,x)=>s+(x-m)**2,0)/v.length); };
+const fname=f=>{ if(f<0) return "（切不出來）"; const [k,l]=FEAT[f]; return is4H(k)?`<span class="tag4">${l}</span>`:l; };
+const fmtThr=(f,t)=>{ const k=FEAT[f][0]; return /^(rsi|mfi|willr|out_run|hour|wd|mom|bb_pos|don_pos|vol_|hv_ratio)/.test(k)?t.toFixed(2):(t*100).toFixed(3)+"%"; };
 
 function render(D){
-  const {res, folds, n, blocked, sweep, impAgg, X, foldBase}=D;
-  const base=mean(foldBase);
-  const pct=x=>isNaN(x)?"—":(x*100).toFixed(1)+"%";
+  const {res,stumps,imp,n,blocked,folds,spanDays}=D;
+  const base=avg(res["規則基準（全押漲）"].map(r=>r.picked));
+  let h=`<div class="card"><div class="mono" style="font-size:15px">訊號 ${n} 筆
+    <span class="hint">濾網擋下 ${blocked}・${folds} 折・特徵 ${FEAT.length} 個（<span class="tag4">藍字</span>＝4 小時／1 天特徵）</span></div>`;
 
-  let html=`<div class="card">
-    <div class="sec" style="margin-top:0">樣本</div>
-    <div class="row"><span class="mono">訊號 ${n} 筆</span>
-      <span class="hint">濾網擋下 ${blocked}・${folds} 折 TimeSeriesSplit＋gap・特徵 ${X[0].length} 個</span></div>
+  // ── 第五條規則 ──
+  const ok=stumps.filter(s=>s.f>=0);
+  let gW=0,gN=0,aW=0,aN=0;
+  for(const s of stumps){ aN+=s.nAll; aW+=s.base*s.nAll; if(s.f>=0){ gW+=s.winGood; gN+=s.nGood; } }
+  const gWR=gN?gW/gN:NaN, aWR=aW/aN, se=gN?Math.sqrt(gWR*(1-gWR)/gN):NaN;
+  const cnt={}; for(const s of ok) cnt[s.f]=(cnt[s.f]||0)+1;
+  const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
+  h+=`<div class="sec">第五條規則：決策樹第一刀</div>
+    <div class="sub">每一折只用「訓練資料」切一刀，再拿切出來比較好的那一邊，去「沒看過的測試資料」算勝率。</div>
+    <div class="scroll"><table><tr><th>折</th><th>第一刀切在</th><th>切點</th><th>訓練：好邊/壞邊</th><th>測試：好邊勝率</th><th>測試：壞邊勝率</th><th>測試：規則基準</th><th>保留比例</th></tr>`;
+  for(const s of stumps){
+    if(s.f<0){ h+=`<tr><td>${s.fold}</td><td colspan="7" class="hint">這一折切不出有意義的分界</td></tr>`; continue; }
+    h+=`<tr class="${s.teGood>s.base?"hl":""}"><td>${s.fold}</td><td>${fname(s.f)}</td>
+      <td class="mono">${s.goodLeft?"≤":">"} ${fmtThr(s.f,s.thr)}</td>
+      <td class="mono">${pct(s.trGood)} / ${pct(s.trBad)}</td>
+      <td class="mono" style="color:${s.teGood>BREAKEVEN?"var(--up)":"var(--down)"}">${pct(s.teGood)} <span class="hint">(${s.nGood})</span></td>
+      <td class="mono">${pct(s.teBad)} <span class="hint">(${s.nBad})</span></td>
+      <td class="mono">${pct(s.base)}</td><td class="mono">${pct(s.nGood/s.nAll,0)}</td></tr>`;
+  }
+  h+=`</table></div>`;
+  const same=top?top[1]:0, perDayAll=aN/spanDays*(folds/(folds+1)), keep=gN/aN;
+  const evA=aWR*PAYOUT-(1-aWR), evG=gWR*PAYOUT-(1-gWR);
+  let v=`測試資料合計：只用原本四條規則 ${pct(aWR)}（${aN} 筆）；加上第一刀後 ${pct(gWR)}（${gN} 筆，95% 區間 ±${(1.96*se*100).toFixed(1)} 個百分點）。`;
+  v+=` 五折中有 ${same} 折切在同一個特徵（${top?fname(+top[0]):"—"}）。`;
+  const better=gWR-aWR;
+  if(same>=Math.ceil(folds*0.8) && better>=0.015 && gWR-1.96*se>aWR)
+    v+=` <b>穩定而且有效</b>：同一個特徵反覆被選中，勝率提升 ${(better*100).toFixed(1)} 個百分點且超出誤差範圍，值得加成第五條規則。`;
+  else if(better>0.005)
+    v+=` 有提升 ${(better*100).toFixed(1)} 個百分點，但${same<Math.ceil(folds*0.8)?"每折切的特徵不一致":"還在誤差範圍內"}，可能是雜訊，先不要加。`;
+  else v+=` <b>沒有幫助</b>：加了第一刀，測試勝率沒有比原本高。`;
+  v+=`<br>期望值比較：原本每 1U ${evA>=0?"+":""}${evA.toFixed(3)}、筆數 100%；加第五條後每 1U ${evG>=0?"+":""}${evG.toFixed(3)}、筆數剩 ${pct(keep,0)}。總獲利看「期望值 × 筆數」，筆數少太多也不划算。`;
+  h+=`<div class="verdict">${v}</div>`;
 
-    <div class="sec">各模型表現（${folds} 折平均 ± 標準差）</div>
-    <table><tr><th>模型</th><th>預測準確率</th><th>AUC</th><th>下注比例</th><th>下注單勝率</th><th>每1U期望值</th></tr>`;
-
+  // ── 模型表現 ──
+  h+=`<div class="sec">三個模型（${folds} 折平均）</div>
+    <div class="sub">下注單勝率＝模型說會贏的那些單實際贏多少。要跟規則基準 ${pct(base)} 比。AUC 0.5＝跟擲硬幣一樣。</div>
+    <div class="scroll"><table><tr><th>模型</th><th>下注單勝率</th><th>AUC</th><th>下注比例</th></tr>`;
   for(const name in res){
-    const r=res[name];
-    const picked=mean(r.picked), ev=picked*PAYOUT-(1-picked);
-    const isBase=name.startsWith("規則");
-    const better = !isBase && picked>base;
-    html+=`<tr class="${better?"hl":""}">
-      <td><b>${name}</b></td>
-      <td class="mono">${pct(mean(r.acc))}<span class="hint"> ±${(std(r.acc)*100).toFixed(1)}</span></td>
-      <td class="mono">${isBase?"—":mean(r.auc).toFixed(3)}</td>
-      <td class="mono">${pct(mean(r.kept))}</td>
-      <td class="mono" style="color:${picked>BREAKEVEN?"var(--up)":"var(--down)"}">${pct(picked)}</td>
-      <td class="mono" style="color:${ev>=0?"var(--up)":"var(--down)"}">${isNaN(ev)?"—":(ev>=0?"+":"")+ev.toFixed(3)}</td></tr>`;
+    const r=res[name], p=avg(r.map(x=>x.picked)), isB=name.startsWith("規則");
+    h+=`<tr class="${!isB&&p>base?"hl":""}"><td><b>${name}</b></td>
+      <td class="mono" style="color:${p>BREAKEVEN?"var(--up)":"var(--down)"}">${pct(p)} <span class="hint">±${(sdv(r.map(x=>x.picked))*100).toFixed(1)}</span></td>
+      <td class="mono">${isB?"—":avg(r.map(x=>x.auc)).toFixed(3)}</td><td class="mono">${pct(avg(r.map(x=>x.kept)),0)}</td></tr>`;
   }
-  html+=`</table>
-    <div class="hint" style="margin-top:8px">「下注單勝率」才是交易上有意義的數字：模型說會贏的那些單，實際贏了多少。
-    基準線＝規則全押漲 ${pct(base)}，兩平線 55.6%。黃底＝勝過規則基準。</div>`;
+  h+=`</table></div>`;
 
-  // 各折明細
-  html+=`<div class="sec">各折勝率（看穩定度，不是看平均）</div><table>
-    <tr><th>模型</th>${res["規則基準（全押漲）"].picked.map((_,i)=>`<th>第${i+1}折</th>`).join("")}</tr>`;
-  for(const name in res){
-    html+=`<tr><td>${name}</td>${res[name].picked.map(v=>
-      `<td class="mono" style="color:${v>BREAKEVEN?"var(--up)":"var(--down)"}">${pct(v)}</td>`).join("")}</tr>`;
+  // ── 特徵重要性 ──
+  const imps=Object.entries(imp).map(([f,v])=>[+f,v]).sort((a,b)=>b[1]-a[1]), tot=imps.reduce((s,x)=>s+x[1],0)||1;
+  h+=`<div class="sec">特徵重要性（隨機森林）</div><div class="sub">藍色＝4 小時／1 天特徵。如果 4H 特徵真的最關鍵，它應該明顯排在前面、而不是大家擠在一起。</div>`;
+  for(const [f,val] of imps.slice(0,15)){
+    h+=`<div style="display:flex;gap:8px;align-items:center;font-size:12px;padding:2px 0">
+      <span style="width:170px">${fname(f)}</span><span class="bar${is4H(FEAT[f][0])?" h4":""}" style="width:${(val/tot*400).toFixed(0)}px"></span>
+      <span class="mono hint">${(val/tot*100).toFixed(1)}%</span></div>`;
   }
-  html+=`</table>`;
-
-  // 門檻掃描
-  html+=`<div class="sec">信心門檻掃描（RandomForest，全折外推合併）</div><table>
-    <tr><th>門檻</th><th>下注筆數</th><th>勝率</th><th>每1U期望值</th><th>固定20U損益</th></tr>`;
-  for(const s of sweep){
-    html+=`<tr><td class="mono">p ≥ ${s.t.toFixed(2)}</td><td class="mono">${s.n}</td>
-      <td class="mono" style="color:${s.wr>BREAKEVEN?"var(--up)":"var(--down)"}">${pct(s.wr)}</td>
-      <td class="mono" style="color:${s.ev>=0?"var(--up)":"var(--down)"}">${isNaN(s.ev)?"—":(s.ev>=0?"+":"")+s.ev.toFixed(3)}</td>
-      <td class="mono" style="color:${s.pnl>=0?"var(--up)":"var(--down)"}">${isNaN(s.pnl)?"—":(s.pnl>=0?"+":"")+s.pnl.toFixed(0)}U</td></tr>`;
-  }
-  html+=`</table><div class="hint" style="margin-top:6px">門檻拉高＝更挑剔＝筆數變少。要看的是勝率升幅能不能補償筆數損失。</div>`;
-
-  // 特徵重要性
-  const imps=Object.entries(impAgg).map(([f,v])=>[+f,v]).sort((a,b)=>b[1]-a[1]);
-  const tot=imps.reduce((s,x)=>s+x[1],0)||1;
-  html+=`<div class="sec">特徵重要性（RandomForest，Gini 增益加總）</div>`;
-  for(const [f,v] of imps.slice(0,10)){
-    html+=`<div style="display:flex;gap:8px;align-items:center;font-size:12px;padding:2px 0">
-      <span class="mono" style="width:110px">${FNAMES[f]||("f"+f)}</span>
-      <span class="bar" style="width:${(v/tot*300).toFixed(0)}px"></span>
-      <span class="mono hint">${(v/tot*100).toFixed(1)}%</span></div>`;
-  }
-
-  // 判定
-  const rfPicked=mean(res["RandomForest"].picked), dtPicked=mean(res["DecisionTree"].picked);
-  const bestPicked=Math.max(rfPicked,dtPicked,mean(res["Logistic"].picked));
-  let v;
-  if(bestPicked>base+0.02) v=`模型有效：最佳模型把下注單勝率從規則的 ${pct(base)} 提升到 ${pct(bestPicked)}，而且是在 ${folds} 折外推驗證下。值得把它當成下注前的過濾器。`;
-  else if(bestPicked>base) v=`模型略有幫助（${pct(base)} → ${pct(bestPicked)}），但幅度小於 2 個百分點，可能只是雜訊。看各折是否一致，不一致就別用。`;
-  else v=`模型沒有勝過規則本身（規則 ${pct(base)} vs 模型 ${pct(bestPicked)}）。代表規則已經把能用的訊息抓完了，加機器學習反而多此一舉 — 這本身就是有價值的結論。`;
-  html+=`<div class="verdict">${v}</div></div>`;
-
-  $("out").innerHTML=html;
+  h+=`</div>`;
+  $("out").innerHTML=h;
 }
 $("runBtn").onclick=run;
 </script>
